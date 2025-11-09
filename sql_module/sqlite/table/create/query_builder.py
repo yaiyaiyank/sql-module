@@ -66,9 +66,9 @@ class CreateQueryBuilder:
         if python_type == int:
             return "INTEGER"
         if python_type == datetime.datetime:
-            return "TIMESTAMP"
+            return "TEXT"
         if python_type == datetime.date:
-            return "TIMESTAMP"
+            return "TEXT"
         if python_type == Path:
             return "TEXT"
         if python_type == bytes:
@@ -102,6 +102,9 @@ class CreateQueryBuilder:
             constraint_str_list.append(
                 f"REFERENCES {constraint.references.name.table_name.now} ({constraint.references.name.now}) ON DELETE CASCADE"
             )
+        # default
+        if not constraint.default_value is None:
+            constraint_str_list.append(f"DEFAULT {constraint.default_value}")
 
         constraint_query = base_utils_module.str_.join_space(constraint_str_list)
         return constraint_query

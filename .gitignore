@@ -8,7 +8,7 @@ wheels/
 
 # Virtual environments
 .venv
-/config.toml
+.vscode
 
 # local
 /test_stg

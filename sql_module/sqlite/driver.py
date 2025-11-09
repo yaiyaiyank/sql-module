@@ -76,10 +76,17 @@ class Driver:
     def begin(self):
         self.conn.execute("BEGIN")
 
-    def execute_cursor(self, query: str, parameters: dict[str] = None, time_log: bool = False):
+    def execute_cursor(self, query: str, parameters: dict[str] | None = None, time_log: bool = False):
+        """
+        cursorを実行
+
+        Args:
+            query (str): クエリ
+            parameters (dict[str] | None): プレースホルダのパラメータ
+        """
         self.open_full()
         time_start = time.time()
-        if not parameters:
+        if parameters is None or parameters.__len__() == 0:
             self.cursor.execute(query)
         # Noneや__len__() > 0
         else:

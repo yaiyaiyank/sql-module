@@ -2,7 +2,7 @@
 
 ## 目的
 
-みなさんこんばんは、にじきんじ所属のヤイヤイさんです。このリポジトレィは肥大化した自作ライブラリをポリレポ化する試みのsql部分です。
+みなさんこんばんは、にじきんじ所属のヤイさんです。このリポジトレィは肥大化した自作ライブラリをポリレポ化する試みのsql部分です。
 ただリファクタする以外に機能改善をちゃんとやっているのでねって感じです。
 
 ## 依存関係
@@ -39,16 +39,19 @@ table.create([column1, column2])
 create = table.create([column1, column2], is_execute=False)
 create.execute()
 ```
-表制約を入れる場合はCompositeConstraintオブジェクトをリストでcreateメソッドに渡す。
-```python
-uni = sqlite.constraint.UniqueCompositeConstraint([column1, column2])
-create = table.create([column1, column2], [uni])
 
-# 複合主キーは変更に弱いので非推奨です。これは多くのORMが複合主キーに対応せずサロゲートキーのみに対応している事実からもわかります。
-# もし、今複合主キーを含むデータベースがあるならその複合主キーを複合ユニークとし、それをサロゲートキーに対応させましょう。
-# pri = sqlite.constraint.PrimaryCompositeConstraint([column1, column2])
-# create = table.create([column1, column2], [pri])
+<!-- ここからスマホでの編集で、プレビューなしです。あとでPCでimportのパスとか確認するです。 -->
+
+カラムを属性として持ち、カラム名定義からcreateメソッドまでをサポートするフレームワークを提供しています。
+```python
+from yai.entry.sql_module import sqlite
+
+
+
+class WorkTable(sqlite.DateIDTableDifinition):
+    def set_column(self)
 ```
+
 
 
 

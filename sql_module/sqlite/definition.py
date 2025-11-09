@@ -1,22 +1,24 @@
-from yai.entry import dataclass, abstractmethod
+from yai.entry import dataclass, abstractmethod, datetime
 from yai.entry.sql_module import sqlite
 
 
 @dataclass
 class TableDefinition:
-    """カラムにself.id_columnみたいにアクセスできる"""
+    """
+    self.id_columnみたいにカラムにアクセスできるクラス
+    self.id_columnを標準搭載し、create_table時にself.id_columnが必ず先頭にくる
+    """
 
     table: sqlite.Table
 
     def __post_init__(self):
-        self.id_column = self.table.get_column("id", type=int)
         self.set_colmun_difinition()
 
     @abstractmethod
     def set_colmun_difinition(self):
         """カラムの定義"""
 
-    def create_table(
+    def create(
         self,
         composite_constraint_list: list[sqlite.constraint.CompositeConstraint] | None = None,
         is_column_sort: bool = True,
@@ -26,18 +28,33 @@ class TableDefinition:
 
     def _get_create_column(self, is_column_sort: bool):
         attrs = self.__dict__.values()
-        column_attrs = [attr for attr in attrs if isinstance(attr, sqlite.Column)]
-        column_list = self._sort_by_base_column(column_attrs, is_column_sort)
+        column_list = [attr for attr in attrs if isinstance(attr, sqlite.Column)]
         return column_list
-
-    def _sort_by_base_column(self, column_attrs: list[sqlite.Column], is_column_sort: bool) -> list[sqlite.Column]:
-        # TODO ソート処理やる
-        return column_attrs
 
 
 @dataclass
-class AtDateTableDefinition(TableDefinition):
-    """カラムにself.id_columnみたいにアクセスできる"""
+class IDTableDefinition(TableDefinition):
+    def __post_init__(self):
+        self.id_column = self.table.get_column("id", type=int, primary=True)
+        self.set_colmun_difinition()
+
+    @abstractmethod
+    def set_colmun_difinition(self):
+        pass
 
 
-["id", "post_id", "site_id", "updated_at", "created_at", "name"]
+@dataclass
+class AtDateIDTableDefinition(TableDefinition):
+    def __post_init__(self):
+        self.id_column = self.table.get_column("id", type=int, primary=True)
+        self.set_colmun_difinition()
+        self.created_at_column = self.table.get_column(
+            "created_at", type=datetime.datetime, default_value="CURRENT_TIMESTAMP"
+        )
+        self.updated_at_column = self.table.get_column(
+            "updated_at", type=datetime.datetime, default_value="CURRENT_TIMESTAMP"
+        )
+
+    @abstractmethod
+    def set_colmun_difinition(self):
+        pass

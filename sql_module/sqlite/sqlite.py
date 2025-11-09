@@ -1,6 +1,6 @@
 from yai.entry import Path, dataclass, Literal
 
-from yai.entry.sql_module.sqlite import TableDefinition, AtDateTableDefinition
+from yai.entry.sql_module.sqlite import TableDefinition, AtDateIDTableDefinition
 from yai.entry.sql_module.sqlite import Table
 from .driver import Driver
 from .table.name import TableName
@@ -18,15 +18,6 @@ class SQLiteDataBase:
     def get_table(self, name: str) -> Table:
         table_name = TableName(name)
         return Table(driver=self.driver, name=table_name)
-
-    def get_table_definition(self, name: str, table_type: Literal["id", "dt"] = "id"):
-        table = self.get_table(name)
-        if table_type == "id":
-            return TableDefinition(table)
-        elif table_type == "dt":
-            return AtDateTableDefinition(table)
-        else:
-            TypeError('table_type attr is "id" or "dt"')
 
     def get_table_list(self) -> list[Table]:
         self.driver.execute_cursor("SELECT name FROM sqlite_master WHERE type='table';")

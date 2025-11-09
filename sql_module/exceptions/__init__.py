@@ -12,3 +12,7 @@ class ColumnAlreadyRegistrationError(SQLException):
 
 class ConstraintConflictError(SQLException):
     """キー制約の組み合わせが不正なときのエラー"""
+
+
+class SQLTypeError(SQLException):
+    "そのPythonの型に対応するsqlite用の型がないときのエラー"
