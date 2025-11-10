@@ -1,9 +1,10 @@
-from yai.entry import Path, dataclass, Literal
+from pathlib import Path
+from dataclasses import dataclass
 
-from yai.entry.sql_module.sqlite import TableDefinition, AtDateIDTableDefinition
-from yai.entry.sql_module.sqlite import Table
-from .driver import Driver
-from .table.name import TableName
+from sql_module.sqlite.definition import TableDefinition, AtDateIDTableDefinition
+from sql_module.sqlite.table.table import Table
+from sql_module.sqlite.driver import Driver
+from sql_module.sqlite.table.name import TableName
 
 
 @dataclass

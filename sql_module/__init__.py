@@ -1,0 +1,2 @@
+# いづれsqliteだけでなくPostgreSQLにも対応する予定。MySQLはGPLライセンスなので汚染回避のため採用しない
+from sql_module.sqlite.table import table

@@ -4,7 +4,7 @@ import sqlite3
 import time
 from typing import Self
 
-from ..exceptions import FetchNotFoundError
+from sql_module.exceptions import FetchNotFoundError
 
 
 @dataclass
