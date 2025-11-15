@@ -1,24 +1,30 @@
-from yai.entry import Log, dataclass, field, Path, datetime, Literal, base_utils_module
+# 標準ライブラリ
+from pathlib import Path
+from dataclasses import dataclass, field
+import datetime
 
 # 主要要素
-from ..driver import Driver
-from .name import TableName
-from .column.name import ColumnName
-from yai.entry.sql_module.sqlite import Column
-from yai.entry.sql_module.sqlite import Field
-from .column.column import ColumnConstraint
+from sql_module.sqlite.driver import Driver
+from sql_module.sqlite.table.name import TableName
+from sql_module.sqlite.table.column.name import ColumnName
+from sql_module.sqlite.table.column.column import Column
+from sql_module.sqlite.table.record.record import Field
+from sql_module.sqlite.table.column.column_constraint import ColumnConstraint
 
 # create系
-from yai.entry.sql_module.sqlite.constraint import CompositeConstraint
-from yai.entry.sql_module.sqlite.querables import Create
-from .create.query_builder import CreateQueryBuilder
+from sql_module import CompositeConstraint
+from sql_module import Create
+from sql_module.sqlite.table.create.query_builder import CreateQueryBuilder
 
 # insert系
-from yai.entry.sql_module.sqlite.querables import Insert
-from .insert.query_builder import InsertQueryBuilder
+from sql_module import Insert
+from sql_module.sqlite.table.insert.query_builder import InsertQueryBuilder
+
+# utils
+from sql_module import utils
 
 # exceptions
-from ...exceptions import ColumnAlreadyRegistrationError
+from sql_module.exceptions import ColumnAlreadyRegistrationError
 
 # テーブルのメイン操作系
 
@@ -36,7 +42,6 @@ class Table:
 
     driver: Driver
     name: TableName
-    log: Log = field(default_factory=Log)
 
     def __repr__(self) -> str:
         text = f"テーブル名: {self.name}"
@@ -98,11 +103,9 @@ class Table:
         # 表制約のクエリ
         composite_constraint_query = query_builder.get_composite_constraint_query(composite_constraint_list)
         # 制約クエリ(列+表)
-        constraint_query = base_utils_module.str_.join_comma(
-            [column_define_constraint_query, composite_constraint_query], no_empty=True
-        )
+        constraint_query = utils.join_comma([column_define_constraint_query, composite_constraint_query], no_empty=True)
 
-        query = f"{head_query} {self.name.now} {constraint_query}"
+        query = f"{head_query} {self.name.now} ({constraint_query})"
         create = Create(driver=self.driver, query=query)
 
         if is_execute:
@@ -110,7 +113,7 @@ class Table:
 
         return create
 
-    def insert(self, record: list[Field]):
+    def insert(self, record: list[Field], is_execute: bool = True):
         """
         行を挿入
         今はバルク非対応

@@ -1,9 +1,8 @@
-from yai.entry import Log, dataclass, field, Path, datetime
-from ....exceptions import ConstraintConflictError
-from .interface import ColumnLike
-from ...driver import Driver
-from ..name import TableName
-from .name import ColumnName
+from pathlib import Path
+from dataclasses import dataclass
+import datetime
+
+from sql_module.sqlite.table.column.interface import ColumnLike
 
 
 @dataclass

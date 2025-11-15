@@ -1,8 +1,8 @@
-from yai.entry import Log, dataclass, field, Path, datetime
-from .interface import ColumnLike
-from ...driver import Driver
-from .name import ColumnName
-from .column_constraint import ColumnConstraint
+from dataclasses import dataclass
+from sql_module.sqlite.table.column.interface import ColumnLike
+from sql_module.sqlite.driver import Driver
+from sql_module.sqlite.table.column.name import ColumnName
+from sql_module.sqlite.table.column.column_constraint import ColumnConstraint
 
 
 @dataclass
@@ -15,7 +15,6 @@ class Column(ColumnLike):  # ColumnLikeは別ファイルのColumnConstraintと�
     driver: Driver
     name: ColumnName
     constraint: ColumnConstraint
-    log: Log = field(default_factory=Log)
 
     def make_index(self):
         """インデックス生成"""

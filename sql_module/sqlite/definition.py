@@ -1,15 +1,18 @@
-from yai.entry import dataclass, abstractmethod, datetime
-from yai.entry.sql_module import sqlite
+from dataclasses import dataclass, field
+import datetime
+from abc import abstractmethod
+
+from sql_module import Table, Column, CompositeConstraint, Create
 
 
 @dataclass
 class TableDefinition:
     """
-    self.id_columnみたいにカラムにアクセスできるクラス
-    self.id_columnを標準搭載し、create_table時にself.id_columnが必ず先頭にくる
+    self.name_columnみたいにカラムにアクセスできるクラス
+    createやinsert対応
     """
 
-    table: sqlite.Table
+    table: Table
 
     def __post_init__(self):
         self.set_colmun_difinition()
@@ -20,23 +23,34 @@ class TableDefinition:
 
     def create(
         self,
-        composite_constraint_list: list[sqlite.constraint.CompositeConstraint] | None = None,
-        is_column_sort: bool = True,
-    ):
-        column_list = self._get_create_column(is_column_sort)
-        self.table.create(column_list, composite_constraint_list)
+        composite_constraint_list: list[CompositeConstraint] | None = None,
+        exists_ok: bool = True,
+        is_execute: bool = True,
+    ) -> Create:
+        column_list = self._get_create_column()
+        create = self.table.create(column_list, composite_constraint_list, exists_ok, is_execute)
+        return create
 
-    def _get_create_column(self, is_column_sort: bool):
+    def _get_create_column(self):
         attrs = self.__dict__.values()
-        column_list = [attr for attr in attrs if isinstance(attr, sqlite.Column)]
+        column_list = [attr for attr in attrs if isinstance(attr, Column)]
         return column_list
 
 
 @dataclass
 class IDTableDefinition(TableDefinition):
+    """
+    self.id_columnやself.name_columnみたいに定義したカラムにアクセスできるクラス
+    self.id_columnを標準搭載し、create_table時にself.id_columnが必ず先頭にくるようにテーブルのカラムが定義される
+    createやinsert対応
+    """
+
     def __post_init__(self):
-        self.id_column = self.table.get_column("id", type=int, primary=True)
+        self._set_id_colmun()
         self.set_colmun_difinition()
+
+    def _set_id_colmun(self):
+        self.id_column = self.table.get_column("id", type=int, primary=True)
 
     @abstractmethod
     def set_colmun_difinition(self):
@@ -44,10 +58,20 @@ class IDTableDefinition(TableDefinition):
 
 
 @dataclass
-class AtDateIDTableDefinition(TableDefinition):
+class AtIDTableDefinition(IDTableDefinition):
+    """
+    self.id_columnやself.name_columnみたいに定義したカラムにアクセスできるクラス
+    self.id_columnとself.created_at_columnとself.updated_at_columnを標準搭載し、
+    create_table時にself.id_columnが必ず先頭にきて、self.created_at_column, self.updated_at_columnの順に最後にテーブルのカラムが定義される
+    createやinsert対応
+    """
+
     def __post_init__(self):
-        self.id_column = self.table.get_column("id", type=int, primary=True)
+        self._set_id_colmun()
         self.set_colmun_difinition()
+        self._set_at_colmun()
+
+    def _set_at_colmun(self):
         self.created_at_column = self.table.get_column(
             "created_at", type=datetime.datetime, default_value="CURRENT_TIMESTAMP"
         )
