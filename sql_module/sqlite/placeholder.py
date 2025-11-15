@@ -1,10 +1,9 @@
-from yai.entry import Log, dataclass, field, Path, datetime, base_utils_module
+from dataclasses import dataclass, field
 
 
 @dataclass
 class PlaceHolderable:
     placeholder_dict: dict = field(default_factory=dict)
-    log: Log = field(default_factory=Log)
 
     def _add_placeholder(self, sql_value: list) -> str:
         """

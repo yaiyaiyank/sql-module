@@ -11,4 +11,4 @@ wheels/
 .vscode
 
 # local
-/test_stg
+/tests/stg/

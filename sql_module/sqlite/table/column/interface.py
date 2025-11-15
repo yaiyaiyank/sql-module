@@ -1,6 +1,6 @@
-from yai.entry import dataclass, ABC
-from ...driver import Driver
-from .name import ColumnName
+from dataclasses import dataclass
+from abc import ABC
+from sql_module.sqlite.table.column.name import ColumnName
 
 
 @dataclass

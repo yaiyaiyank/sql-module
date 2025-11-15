@@ -1,8 +1,10 @@
-from yai.entry import Log, dataclass, field, Path, datetime, base_utils_module
-from yai.entry.sql_module.exceptions import ConstraintConflictError
-from yai.entry.sql_module.sqlite import Column, Field
+# 標準ライブラリ
+from pathlib import Path
+from dataclasses import dataclass
+import datetime
 
-from ...placeholder import PlaceHolderable
+from sql_module import utils, Field
+from sql_module.sqlite.placeholder import PlaceHolderable
 
 
 @dataclass
@@ -21,7 +23,7 @@ class InsertQueryBuilder(PlaceHolderable):
         # record -> ['name', 'age']
         keys = [field_.column.name.now for field_ in record]
         # ['name', 'age'] -> 'name, age'
-        keys_query = base_utils_module.str_.join_comma(keys)
+        keys_query = utils.join_comma(keys)
         return keys_query
 
     def _get_place_holder_keys_query_query(self, record: list[Field]) -> str:
@@ -31,7 +33,7 @@ class InsertQueryBuilder(PlaceHolderable):
             place_holder_key = self._add_placeholder(field_.sql_value)
             place_holder_keys.append(place_holder_key)
         # [':name', ':age'] -> ':name, :age'
-        place_holder_keys_query = base_utils_module.str_.join_comma(place_holder_keys)
+        place_holder_keys_query = utils.join_comma(place_holder_keys)
         return place_holder_keys_query
 
     def get_on_conflict_query(self, record: list[Field]) -> str:
@@ -60,7 +62,7 @@ class InsertQueryBuilder(PlaceHolderable):
 
     def _get_on_conflict_keys_query(self, on_conflict_keys: list[str]) -> str:
         # ['site_id', 'content_id'] -> 'site_id, content_id'
-        on_conflict_keys_query = base_utils_module.str_.join_comma(on_conflict_keys)
+        on_conflict_keys_query = utils.join_comma(on_conflict_keys)
         return on_conflict_keys_query
 
     def _get_non_conflict_keys_query(self, non_conflict_keys: list[str]) -> str:
@@ -68,5 +70,5 @@ class InsertQueryBuilder(PlaceHolderable):
         non_conflict_key_query_list = [
             f"{non_conflict_key} = excluded.{non_conflict_key}" for non_conflict_key in non_conflict_keys
         ]
-        on_conflict_keys_query = base_utils_module.str_.join_comma(non_conflict_key_query_list)
+        on_conflict_keys_query = utils.join_comma(non_conflict_key_query_list)
         return on_conflict_keys_query

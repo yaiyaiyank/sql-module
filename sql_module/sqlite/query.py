@@ -1,5 +1,5 @@
-from yai.entry import Log, dataclass, field, Path, datetime, Literal, base_utils_module
-from .driver import Driver
+from dataclasses import dataclass, field
+from sql_module.sqlite.driver import Driver
 
 
 @dataclass

@@ -1,5 +1,10 @@
-from yai.entry import *
+# 標準ライブラリ
+from pathlib import Path
+from dataclasses import dataclass
+import datetime
 import sqlite3
+
+from sql_module.exceptions import SQLTypeError
 
 
 def python_value_to_sql_value(
@@ -35,4 +40,4 @@ def python_value_to_sql_value(
     elif python_value is None:
         return None
     else:
-        raise sql_module.exceptions.SQLTypeError
+        raise SQLTypeError(f"その値の型: {type(python_value)}SQLの型に変換できません。")

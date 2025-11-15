@@ -1,4 +1,4 @@
-from yai.entry.sql_module.sqlite.querables import Querable
+from sql_module.sqlite.query import Querable
 
 
 class Create(Querable):

@@ -1,13 +1,17 @@
-from yai.entry import Log, dataclass, field, Path, datetime, base_utils_module
-from yai.entry.sql_module.exceptions import ConstraintConflictError
-from ..column.column import Column, ColumnConstraint
-from yai.entry.sql_module.sqlite.constraint import CompositeConstraint
+# 標準ライブラリ
+from pathlib import Path
+from dataclasses import dataclass
+import datetime
+
+from sql_module import utils
+from sql_module.sqlite.table.column.column import Column, ColumnConstraint
+from sql_module import CompositeConstraint
+
+from sql_module.exceptions import ConstraintConflictError, SQLTypeError
 
 
 @dataclass
 class CreateQueryBuilder:
-    log: Log = field(default_factory=Log)
-
     @staticmethod
     def get_head_query(exists_ok: bool) -> str:
         """最初のクエリ作成"""
@@ -30,7 +34,7 @@ class CreateQueryBuilder:
             one_column_define_constraint_query = self._get_one_column_define_constraint_query(column)
             one_column_define_constraint_query_list.append(one_column_define_constraint_query)
 
-        column_define_constraint_query = base_utils_module.str_.join_comma(one_column_define_constraint_query_list)
+        column_define_constraint_query = utils.join_comma(one_column_define_constraint_query_list)
         return column_define_constraint_query
 
     def _get_one_column_define_constraint_query(self, column: Column) -> str:
@@ -40,14 +44,11 @@ class CreateQueryBuilder:
         Column(name.now = 'text', constraint.python_type = str, constraint.not_null = True)
         ->
         'text TEXT NOT NULL'
-
-
-
         """
         sqlite_type = self._get_sqlite_type(column.constraint.python_type)  # "TEXT"など
         constraint_query = self._get_constraint_query(column.constraint)
 
-        one_column_define_constraint_query = base_utils_module.str_.join_space(
+        one_column_define_constraint_query = utils.join_space(
             [column.name.now, sqlite_type, constraint_query], no_empty=True
         )
         return one_column_define_constraint_query
@@ -74,8 +75,7 @@ class CreateQueryBuilder:
         if python_type == bytes:
             return "BLOB"
 
-        self.log.error(f"{python_type}はSQLの型に変換できません。")
-        raise TypeError
+        raise SQLTypeError(f"値の型: {type(python_type)}はSQLの型に変換できません。")
 
     def _get_constraint_query(self, constraint: ColumnConstraint) -> str:
         """
@@ -91,8 +91,7 @@ class CreateQueryBuilder:
         # unique
         if constraint.unique:
             if constraint.primary:
-                self.log.error("primaryキー制約とuniqueキー制約を同時に入れることはできません。")
-                raise ConstraintConflictError
+                raise ConstraintConflictError("primaryキー制約とuniqueキー制約を同時に入れることはできません。")
             constraint_str_list.append("UNIQUE")
         # not null
         if constraint.not_null:
@@ -106,7 +105,7 @@ class CreateQueryBuilder:
         if not constraint.default_value is None:
             constraint_str_list.append(f"DEFAULT {constraint.default_value}")
 
-        constraint_query = base_utils_module.str_.join_space(constraint_str_list)
+        constraint_query = utils.join_space(constraint_str_list)
         return constraint_query
 
     def get_composite_constraint_query(self, composite_constraint_list: list[CompositeConstraint] | None) -> str:
@@ -121,6 +120,6 @@ class CreateQueryBuilder:
         composite_constraint_query_list = [
             one_composite_constraint_query.get_query() for one_composite_constraint_query in composite_constraint_list
         ]
-        composite_constraint_query = base_utils_module.str_.join_comma(composite_constraint_query_list)
+        composite_constraint_query = utils.join_comma(composite_constraint_query_list)
 
         return composite_constraint_query

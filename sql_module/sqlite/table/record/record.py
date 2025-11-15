@@ -1,13 +1,18 @@
-from yai.entry import *
-from yai.entry.sql_module import sqlite
+# 標準ライブラリ
+from pathlib import Path
+from dataclasses import dataclass
+import datetime
 
-from ..sql_value import python_value_to_sql_value
+# このライブラリ
+from sql_module import Column
+from sql_module.sqlite.table.sql_value import python_value_to_sql_value
 
 
+@dataclass
 class Field:
     """insertや"""
 
-    column: sqlite.Column
+    column: Column
     value: str | int | bytes | Path | datetime.date | None
     upsert: bool = False
     is_log: bool = True
