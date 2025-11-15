@@ -2,7 +2,7 @@
 
 # 基本データ型の拡張モジュール
 
-自分のエコシステム用につくった基本データ型のユーティリティ的なモジュール<br>
+自分のエコシステム用につくったSQLのユーティリティ的なモジュール<br>
 役立ちそう ∧ 機密情報なし なのでパブリックで公開
 
 # install
@@ -27,7 +27,7 @@ db_path = r"C:\aaaaaaaa.db"
 database = sql_module.SQLiteDataBase(db_path) # 引数db_pathは文字列, pathlib.Pathに対応しています。
 
 # SQLiteDataBaseに何も入れなければインメモリデータベースになります。
-database = sql_module.SQLiteDataBase()
+# database = sql_module.SQLiteDataBase()
 
 # SQLiteDataBaseオブジェクトからTableオブジェクトを定義 
 work_table = database.get_table("work")
