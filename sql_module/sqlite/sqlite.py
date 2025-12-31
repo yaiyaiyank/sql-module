@@ -20,13 +20,14 @@ class SQLiteDataBase:
         table_name = TableName(name)
         return Table(driver=self.driver, name=table_name)
 
-    def get_table_definition(self, name: str, _ClassInfo: TableDefinition) -> TableDefinition:
-        table_name = TableName(name)
-        table = Table(driver=self.driver, name=table_name)
-        table_definition = _ClassInfo(table)
+    def get_table_definition(self, name: str, table_definition_class: TableDefinition) -> TableDefinition:
+        """ここにWorkなどを渡す"""
+        table = self.get_table(name)
+
+        table_definition = table_definition_class(table)
         return table_definition
 
     def get_exists_table_list(self) -> list[Table]:
-        self.driver.execute_cursor("SELECT name FROM sqlite_master WHERE type='table';")
+        self.driver.execute("SELECT name FROM sqlite_master WHERE type='table';")
         tables = self.driver.fetchall()
-        return [Table(driver=self.driver, name=TableName(table[0])) for table in tables]
+        return [self.get_table(table[0]) for table in tables]

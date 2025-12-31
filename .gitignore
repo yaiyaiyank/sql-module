@@ -12,3 +12,4 @@ wheels/
 
 # local
 /tests/stg/
+test.ipynb

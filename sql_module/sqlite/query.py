@@ -9,4 +9,4 @@ class Querable:
     placeholder_dict: dict = field(default_factory=dict)
 
     def execute(self):
-        self.driver.execute_cursor(self.query, self.placeholder_dict)
+        self.driver.execute(self.query, self.placeholder_dict)

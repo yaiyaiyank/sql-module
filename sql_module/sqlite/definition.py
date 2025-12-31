@@ -8,7 +8,7 @@ from sql_module import Table, Column, CompositeConstraint, Create
 @dataclass
 class TableDefinition:
     """
-    self.name_columnみたいにカラムにアクセスできるクラス
+    self.name_columnみたいにカラムにアクセスできる、カラムンベースなクラス
     createやinsert対応
     """
 
@@ -21,14 +21,18 @@ class TableDefinition:
     def set_colmun_difinition(self):
         """カラムの定義"""
 
+    def info(self):
+        """テーブルの生の声"""
+        return self.table.info()
+
     def create(
         self,
-        composite_constraint_list: list[CompositeConstraint] | None = None,
+        composite_constraint: list[CompositeConstraint] | CompositeConstraint | None = None,
         exists_ok: bool = True,
         is_execute: bool = True,
     ) -> Create:
         column_list = self._get_create_column()
-        create = self.table.create(column_list, composite_constraint_list, exists_ok, is_execute)
+        create = self.table.create(column_list, composite_constraint, exists_ok, is_execute)
         return create
 
     def _get_create_column(self):

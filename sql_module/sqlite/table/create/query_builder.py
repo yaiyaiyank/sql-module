@@ -10,7 +10,6 @@ from sql_module import CompositeConstraint
 from sql_module.exceptions import ConstraintConflictError, SQLTypeError
 
 
-@dataclass
 class CreateQueryBuilder:
     @staticmethod
     def get_head_query(exists_ok: bool) -> str:
@@ -30,6 +29,9 @@ class CreateQueryBuilder:
         """
         one_column_define_constraint_query_list = []
 
+        # 複数のprimaryはPrimaryCompositeConstraintを使うべし。個人的には非推奨ですが。。。
+        pass
+
         for column in column_list:
             one_column_define_constraint_query = self._get_one_column_define_constraint_query(column)
             one_column_define_constraint_query_list.append(one_column_define_constraint_query)
@@ -45,37 +47,12 @@ class CreateQueryBuilder:
         ->
         'text TEXT NOT NULL'
         """
-        sqlite_type = self._get_sqlite_type(column.constraint.python_type)  # "TEXT"など
         constraint_query = self._get_constraint_query(column.constraint)
 
         one_column_define_constraint_query = utils.join_space(
-            [column.name.now, sqlite_type, constraint_query], no_empty=True
+            [column.name.now, column.constraint.sql_type, constraint_query], no_empty=True
         )
         return one_column_define_constraint_query
-
-    def _get_sqlite_type(self, python_type: type) -> str:
-        """
-        str -> 'TEXT'
-        int -> 'INTEGER'
-        みたいな
-        """
-        # 型
-        if python_type == str:
-            return "TEXT"
-        if python_type == bool:
-            return "INTEGER"
-        if python_type == int:
-            return "INTEGER"
-        if python_type == datetime.datetime:
-            return "TEXT"
-        if python_type == datetime.date:
-            return "TEXT"
-        if python_type == Path:
-            return "TEXT"
-        if python_type == bytes:
-            return "BLOB"
-
-        raise SQLTypeError(f"値の型: {type(python_type)}はSQLの型に変換できません。")
 
     def _get_constraint_query(self, constraint: ColumnConstraint) -> str:
         """
@@ -83,7 +60,6 @@ class CreateQueryBuilder:
         ->
         'UNIQUE NOT NULL'
         """
-        # TODO default_valueする
         constraint_str_list = []
         # 主キーのとき
         if constraint.primary:
@@ -103,12 +79,42 @@ class CreateQueryBuilder:
             )
         # default
         if not constraint.default_value is None:
-            constraint_str_list.append(f"DEFAULT {constraint.default_value}")
+            self._get_default_query(constraint.python_type, constraint.default_value)
+            constraint_str_list.append(f"DEFAULT {constraint.sql_default_value}")
 
         constraint_query = utils.join_space(constraint_str_list)
         return constraint_query
 
-    def get_composite_constraint_query(self, composite_constraint_list: list[CompositeConstraint] | None) -> str:
+    def _get_default_query(self, python_type: type, default_value: str | int | bytes | Path | datetime.date) -> str:
+        # datetime.datetime
+        if python_type in [datetime.date, datetime.datetime]:
+            # CURRENT_TIMESTAMPの場合
+            if default_value == "CURRENT_TIMESTAMP":
+                default_query = f"DEFAULT {default_value}"
+                return default_query
+            # 非対応
+            if not isinstance(default_value, datetime.date):
+                raise TypeError("sqliteにそのdatetime.date系オブジェクトは対応していません。")
+            # sqliteの日付へ変換
+            if isinstance(default_value, datetime.datetime):
+                iso_datetime = default_value.isoformat(" ")
+                return iso_datetime
+            if isinstance(default_value, datetime.date):
+                iso_datetime = datetime.datetime.combine(default_value, datetime.time()).isoformat(" ")
+                return iso_datetime
+
+        # BLOBの場合はクォーテーションが必要
+        if python_type == bytes:
+            hex_str = default_value.hex().upper()
+            return f"DEFAULT X'{hex_str}'"
+        # 文字列やパスの場合はクォーテーションが必要
+        if python_type in [str, Path]:
+            default_query = f"DEFAULT '{default_value}'"
+            return default_query
+
+    def get_composite_constraint_query(
+        self, composite_constraint_list: list[CompositeConstraint] | CompositeConstraint | None
+    ) -> str:
         """
         [UNIQUECompositeConstraint([Column(name.now='site_id'), Column(name.now='content_id')]),
         UNIQUECompositeConstraint([Column(name.now='post_id'), Column(name.now='name')])]
@@ -117,6 +123,8 @@ class CreateQueryBuilder:
         """
         if composite_constraint_list is None:
             composite_constraint_list = []
+        if isinstance(composite_constraint_list, CompositeConstraint):
+            composite_constraint_list = [composite_constraint_list]
         composite_constraint_query_list = [
             one_composite_constraint_query.get_query() for one_composite_constraint_query in composite_constraint_list
         ]

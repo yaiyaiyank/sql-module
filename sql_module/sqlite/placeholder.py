@@ -16,6 +16,7 @@ class PlaceHolderable:
 
         変数名がpというふうに可読性が終わっているのはクエリの文字数の上限により到達しにくくするためである
         """
-        place_holder_key = f":p{self.placeholder_dict.__len__()}"
+        place_holder_key = f"p{self.placeholder_dict.__len__()}"
+        place_holder_query = f":{place_holder_key}"
         self.placeholder_dict[place_holder_key] = sql_value
-        return place_holder_key
+        return place_holder_query

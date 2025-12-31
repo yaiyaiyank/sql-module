@@ -11,6 +11,9 @@ from sql_module.sqlite.table.column.column import Column
 from sql_module.sqlite.table.record.record import Field
 from sql_module.sqlite.table.column.column_constraint import ColumnConstraint
 
+# info
+from sql_module.sqlite.table.info import Info
+
 # create系
 from sql_module import CompositeConstraint
 from sql_module import Create
@@ -20,11 +23,15 @@ from sql_module.sqlite.table.create.query_builder import CreateQueryBuilder
 from sql_module import Insert
 from sql_module.sqlite.table.insert.query_builder import InsertQueryBuilder
 
+# update系
+from sql_module import Update
+from sql_module.sqlite.table.update.query_builder import UpdateQueryBuilder
+
 # utils
 from sql_module import utils
 
 # exceptions
-from sql_module.exceptions import ColumnAlreadyRegistrationError
+from sql_module.exceptions import ColumnAlreadyRegistrationError, FetchNotFoundError
 
 # テーブルのメイン操作系
 
@@ -73,13 +80,32 @@ class Table:
         column = Column(driver=self.driver, name=column_name, constraint=column_constraint)
         return column
 
+    def exists(self) -> bool:
+        self.driver.execute(f"SELECT 1 FROM sqlite_master WHERE type='table' AND name='{self.name.now}' LIMIT 1")
+        try:
+            self.driver.fetchone()
+            return True
+        except FetchNotFoundError:
+            return False
+
+    def info(self) -> Info:  # list[Column]:
+        """
+        Remark:
+            この戻り値におけるColumnは以下の型以上の情報は取得できません。
+            - datetime.date | str | Path
+        """
+        if not self.exists():
+            return []
+        info = Info(self.driver, self.name)
+        return info
+
     def make_index(self, column_list: list[Column]):
         """インデックス生成(複合)"""
 
     def create(
         self,
         column_list: list[Column],
-        composite_constraint_list: list[CompositeConstraint] | None = None,
+        composite_constraint: list[CompositeConstraint] | CompositeConstraint | None = None,
         exists_ok: bool = True,
         is_execute: bool = True,
     ):
@@ -101,7 +127,7 @@ class Table:
         # 列定義・列制約のクエリ
         column_define_constraint_query = query_builder.get_column_define_constraint_query(column_list)
         # 表制約のクエリ
-        composite_constraint_query = query_builder.get_composite_constraint_query(composite_constraint_list)
+        composite_constraint_query = query_builder.get_composite_constraint_query(composite_constraint)
         # 制約クエリ(列+表)
         constraint_query = utils.join_comma([column_define_constraint_query, composite_constraint_query], no_empty=True)
 
@@ -141,3 +167,24 @@ class Table:
             insert.execute()
 
         return insert
+
+    def update(self, record: list[Field], where_record: list[Field] | None = None, is_execute: bool = True):
+        """
+        行を更新
+
+        クエリ・パラメータ例:
+        'UPDATE users SET name = :p0, age = :p1 WHERE id = :p2'
+        {'p0': 'Alice', 'p1': 30, 'p2': 1}
+        """
+        query_builder = UpdateQueryBuilder()
+        head_query = query_builder.get_head_query()
+        set_query = query_builder.get_set_query(record)
+        where_query = query_builder.get_where_query(where_record)
+
+        query = utils.join_space([head_query, self.name.now, "SET", set_query, where_query], no_empty=True)
+        update = Update(driver=self.driver, query=query, placeholder_dict=query_builder.placeholder_dict)
+
+        if is_execute:
+            update.execute()
+
+        return update

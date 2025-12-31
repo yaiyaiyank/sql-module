@@ -7,6 +7,7 @@ from sql_module.sqlite.table.record.record import Field
 from sql_module.sqlite.query import Querable
 from sql_module.sqlite.table.create.create import Create
 from sql_module.sqlite.table.insert.insert import Insert
+from sql_module.sqlite.table.update.update import Update
 
 # constraint
 from sql_module.sqlite.table.create.composite_constraint import (
