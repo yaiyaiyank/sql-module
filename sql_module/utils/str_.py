@@ -46,3 +46,18 @@ def join_space(str_list: list[str], no_empty: bool = False) -> str:
 
     joined_str = " ".join(str_list)
     return joined_str
+
+
+def camel_to_snake(s: str) -> str:
+    """
+    'RandomWork'
+    ->
+    'random_work'
+
+    チャッピー製。
+    """
+    # 例: "HTTPRequest" -> "HTTP_Request" の段階を作ってから
+    s = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", s)
+    # 例: "HTTP_Request" -> "HTTP__Request" みたいにならないように整えて
+    s = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s)
+    return s.lower()

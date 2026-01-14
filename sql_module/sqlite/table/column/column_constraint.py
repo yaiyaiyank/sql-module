@@ -87,7 +87,7 @@ class ColumnConstraint:
         if self.python_type in [int, bool]:
             # (type, value)の組み合わせが(int, int), (int, bool), (Path, bool), (bool, bool)でok。boolはintのサブクラス。
             if not isinstance(self.default_value, int):
-                raise TypeError("sqliteにそのbytes系オブジェクトは対応していません。")
+                raise TypeError("sqliteにそのint系オブジェクトは対応していません。")
 
             if isinstance(self.default_value, bool):
                 sql_value = int(self.default_value)  # True -> 1, False -> 0

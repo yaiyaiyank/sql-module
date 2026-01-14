@@ -88,19 +88,36 @@ class Table:
         except FetchNotFoundError:
             return False
 
-    def info(self) -> Info:  # list[Column]:
+    def info(self, show: bool = True) -> Info:
         """
-        Remark:
-            この戻り値におけるColumnは以下の型以上の情報は取得できません。
-            - datetime.date | str | Path
+        このテーブルの持つ情報を詰め込んだinfoオブジェクトを取得。infoオブジェクトは以下の変数を持つ
+        - column_info_list: 各カラムの情報(複合除く)
+        - multi_index_list: 複合ユニークや複合インデックス情報
+        - raw_column_list: PRAGMA table_info(テーブル名);をfetchしたもの
+        - raw_foreign_key_list: PRAGMA foreign_key_list(テーブル名);をfetchしたもの
+        - raw_index_list: PRAGMA index_list(テーブル名);をfetchしたもの
         """
         if not self.exists():
-            return []
+            return f"テーブル: {self.name.now} が作成されていません。"
         info = Info(self.driver, self.name)
+        info.set_info()
+        if show:
+            print(info)
         return info
 
-    def make_index(self, column_list: list[Column]):
+    def make_index(self, column_list: list[Column] | Column):
         """インデックス生成(複合)"""
+        if isinstance(column_list, Column):
+            column_list.make_index()
+            return
+        if isinstance(column_list, list):
+            columns_query = utils.join_comma([column.name.now for column in column_list])
+            columns_name = utils.join_under([column.name.now for column in column_list])
+            self.driver.execute(
+                f"CREATE INDEX IF NOT EXISTS idx_{self.name.now}_{columns_name} ON {self.name.now}({columns_query});"
+            )
+            return
+        raise TypeError("index作成はカラムのみです。")
 
     def create(
         self,

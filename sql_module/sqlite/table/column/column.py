@@ -18,3 +18,6 @@ class Column(ColumnLike):  # ColumnLikeは別ファイルのColumnConstraintと�
 
     def make_index(self):
         """インデックス生成"""
+        self.driver.execute(
+            f"CREATE INDEX IF NOT EXISTS idx_{self.name.table_name.now}_{self.name.now} ON {self.name.table_name.now}({self.name.now});"
+        )

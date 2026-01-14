@@ -6,6 +6,9 @@ from sql_module.sqlite.table.name import TableName
 
 from sql_module import Table, TableDefinition, IDTableDefinition, AtIDTableDefinition
 
+# utils
+from sql_module import utils
+
 
 @dataclass
 class SQLiteDataBase:
@@ -20,8 +23,13 @@ class SQLiteDataBase:
         table_name = TableName(name)
         return Table(driver=self.driver, name=table_name)
 
-    def get_table_definition(self, name: str, table_definition_class: TableDefinition) -> TableDefinition:
-        """ここにWorkなどを渡す"""
+    def get_table_definition(self, table_definition_class: type, name: str | None = None) -> TableDefinition:
+        """
+        TableDefinitionオブジェクトを取得
+        デフォルトではtable_definition_classのキャメルをスネークしたものをテーブル名とする
+        """
+        if name is None:
+            name = utils.camel_to_snake(table_definition_class.__name__)
         table = self.get_table(name)
 
         table_definition = table_definition_class(table)
