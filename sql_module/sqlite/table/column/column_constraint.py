@@ -1,6 +1,7 @@
 from pathlib import Path
 from dataclasses import dataclass
 import datetime
+import sqlite3
 
 from sql_module.sqlite.table.column.interface import ColumnLike
 from sql_module.exceptions import ConstraintConflictError, SQLTypeError
@@ -47,51 +48,79 @@ class ColumnConstraint:
         insert, update, selectは値はちゃんとプレースホルダを使っているので、SQLインジェクションみたいなのは起こらない
         """
         if self.default_value is None:
-            raise TypeError("sql_default_valueを呼び出すときにdefault_valueがNoneだとダメ！！！")
+            raise TypeError("デフォルト値がNoneの場合は設定しなくても良いです")
+
+        sql_default_value = self.get_sql_value(self.default_value)
+        return sql_default_value
+
+    def get_sql_value(self, python_value: str | int | bytes | Path | datetime.date | None):
+        """
+        pythonの値をsqlの値に変換
+
+        insert, update, selectなどに使う
+        """
+        if python_value is None:
+            if self.not_null:
+                raise ValueError("not_nullが適用されたカラムでNoneは挿入不可で、whereでも考慮する必要はないです。")
+            return None
 
         if self.python_type in [datetime.date, datetime.datetime]:
             # CURRENT_TIMESTAMPの場合
-            if self.default_value == "CURRENT_TIMESTAMP":
-                sql_value = self.default_value
+            if python_value == "CURRENT_TIMESTAMP":
+                sql_value = python_value  # むしろ "'CURRENT_TIMESTAMP'" でなくて良い
                 return sql_value
-            # 非対応
-            if not isinstance(self.default_value, datetime.date):
-                raise TypeError("sqliteにそのdatetime.date系オブジェクトは対応していません。")
+            # 非対応 (文字列は上記"CURRENT_TIMESTAMP"しか対応しないので、"2024-01-01"の入力は受け付けない。代わりに、)
+            if not isinstance(python_value, datetime.date):
+                raise TypeError(
+                    f"sqliteのdatetime.date系オブジェクトに、入力した型: {python_value.__class__.__name__} は対応していません。"
+                )
             # sqliteの日付()へ変換
-            if isinstance(self.default_value, datetime.datetime):
-                iso_date = self.default_value.isoformat(" ")
+            if isinstance(python_value, datetime.datetime):
+                iso_date = python_value.isoformat(" ")
                 sql_value = f"'{iso_date}'"
                 return sql_value
-            if isinstance(self.default_value, datetime.date):
-                iso_date = datetime.datetime.combine(self.default_value, datetime.time()).isoformat(" ")
+            if isinstance(python_value, datetime.date):
+                iso_date = datetime.datetime.combine(python_value, datetime.time()).isoformat(" ")
                 sql_value = f"'{iso_date}'"
                 return sql_value
 
         # 文字列やパスの場合はクォーテーションが必要
         if self.python_type in [str, Path]:
             # (type, value)の組み合わせが(str, str), (str, Path), (Path, str), (Path, Path)でok
-            if not isinstance(self.default_value, str | Path):
-                raise TypeError("sqliteにそのstr系オブジェクトは対応していません。")
-            sql_value = f"'{self.default_value}'"
+            if not isinstance(python_value, str | Path):
+                raise TypeError(
+                    f"sqliteにそのstr系オブジェクトに、入力した型: {python_value.__class__.__name__} は対応していません。"
+                )
+            sql_value = f"'{python_value}'"
             return sql_value
 
         # BLOBの場合はhexしてX&クォーテーションが必要
         if self.python_type in [bytes]:
-            if not isinstance(self.default_value, bytes):
-                raise TypeError("sqliteにそのbytes系オブジェクトは対応していません。")
-            hex_str = self.default_value.hex().upper()
-            sql_value = f"X'{hex_str}'"
+            if not isinstance(python_value, bytes):
+                raise TypeError(
+                    f"sqliteにそのbytes系オブジェクトに、入力した型: {python_value.__class__.__name__} は対応していません。"
+                )
+            sql_value = sqlite3.Binary(python_value)
+            # 非推奨らしい。まあPostgreSQLバージョン作るときに参考になるかも知らんし残しとくかぁ～。
+            # hex_str = python_value.hex().upper()
+            # sql_value = f"X'{hex_str}'"
             return sql_value
 
         # intやBLOBの場合
         if self.python_type in [int, bool]:
             # (type, value)の組み合わせが(int, int), (int, bool), (Path, bool), (bool, bool)でok。boolはintのサブクラス。
-            if not isinstance(self.default_value, int):
-                raise TypeError("sqliteにそのint系オブジェクトは対応していません。")
+            if not isinstance(python_value, int):
+                raise TypeError(
+                    f"sqliteにそのint系オブジェクトに、入力した型: {python_value.__class__.__name__} は対応していません。"
+                )
 
-            if isinstance(self.default_value, bool):
-                sql_value = int(self.default_value)  # True -> 1, False -> 0
+            if isinstance(python_value, bool):
+                sql_value = int(python_value)  # True -> 1, False -> 0
                 return sql_value
             # int
-            sql_value = self.default_value
+            sql_value = python_value
             return sql_value
+
+        raise SQLTypeError(
+            f"その値の型: {type(python_value)} は、sqliteでいう型: {python_value.__class__.__name__} に対応する型に変換できません。"
+        )

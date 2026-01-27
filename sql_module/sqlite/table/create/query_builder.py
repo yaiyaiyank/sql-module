@@ -3,6 +3,8 @@ from pathlib import Path
 from dataclasses import dataclass
 import datetime
 
+from sql_module.sqlite.driver import Driver
+from sql_module.sqlite.query import Query
 from sql_module import utils
 from sql_module.sqlite.table.column.column import Column, ColumnConstraint
 from sql_module import CompositeConstraint
@@ -11,14 +13,16 @@ from sql_module.exceptions import ConstraintConflictError, SQLTypeError
 
 
 class CreateQueryBuilder:
-    @staticmethod
-    def get_head_query(exists_ok: bool) -> str:
+    def __init__(self, driver: Driver):
+        self.driver = driver
+
+    def get_head_query(self, exists_ok: bool) -> Query:
         """最初のクエリ作成"""
         if exists_ok:
-            return "CREATE TABLE IF NOT EXISTS"
-        return "CREATE TABLE"
+            return Query("CREATE TABLE IF NOT EXISTS", driver=self.driver)
+        return Query("CREATE TABLE", driver=self.driver)
 
-    def get_column_define_constraint_query(self, column_list: list[Column]) -> str:
+    def get_column_define_constraint_query(self, column_list: list[Column]) -> Query:
         """
         列定義・列制約のクエリ作成
         [Column(name.now = 'create_dt', constraint.python_type = datetime.date, constraint.not_null = True),
@@ -30,14 +34,13 @@ class CreateQueryBuilder:
         one_column_define_constraint_query_list = []
 
         # 複数のprimaryはPrimaryCompositeConstraintを使うべし。個人的には非推奨ですが。。。
-        pass
 
         for column in column_list:
             one_column_define_constraint_query = self._get_one_column_define_constraint_query(column)
             one_column_define_constraint_query_list.append(one_column_define_constraint_query)
 
         column_define_constraint_query = utils.join_comma(one_column_define_constraint_query_list)
-        return column_define_constraint_query
+        return Query(column_define_constraint_query)
 
     def _get_one_column_define_constraint_query(self, column: Column) -> str:
         """
@@ -79,42 +82,14 @@ class CreateQueryBuilder:
             )
         # default
         if not constraint.default_value is None:
-            self._get_default_query(constraint.python_type, constraint.default_value)
             constraint_str_list.append(f"DEFAULT {constraint.sql_default_value}")
 
         constraint_query = utils.join_space(constraint_str_list)
         return constraint_query
 
-    def _get_default_query(self, python_type: type, default_value: str | int | bytes | Path | datetime.date) -> str:
-        # datetime.datetime
-        if python_type in [datetime.date, datetime.datetime]:
-            # CURRENT_TIMESTAMPの場合
-            if default_value == "CURRENT_TIMESTAMP":
-                default_query = f"DEFAULT {default_value}"
-                return default_query
-            # 非対応
-            if not isinstance(default_value, datetime.date):
-                raise TypeError("sqliteにそのdatetime.date系オブジェクトは対応していません。")
-            # sqliteの日付へ変換
-            if isinstance(default_value, datetime.datetime):
-                iso_datetime = default_value.isoformat(" ")
-                return iso_datetime
-            if isinstance(default_value, datetime.date):
-                iso_datetime = datetime.datetime.combine(default_value, datetime.time()).isoformat(" ")
-                return iso_datetime
-
-        # BLOBの場合はクォーテーションが必要
-        if python_type == bytes:
-            hex_str = default_value.hex().upper()
-            return f"DEFAULT X'{hex_str}'"
-        # 文字列やパスの場合はクォーテーションが必要
-        if python_type in [str, Path]:
-            default_query = f"DEFAULT '{default_value}'"
-            return default_query
-
     def get_composite_constraint_query(
         self, composite_constraint_list: list[CompositeConstraint] | CompositeConstraint | None
-    ) -> str:
+    ) -> Query:
         """
         [UNIQUECompositeConstraint([Column(name.now='site_id'), Column(name.now='content_id')]),
         UNIQUECompositeConstraint([Column(name.now='post_id'), Column(name.now='name')])]
@@ -130,4 +105,4 @@ class CreateQueryBuilder:
         ]
         composite_constraint_query = utils.join_comma(composite_constraint_query_list)
 
-        return composite_constraint_query
+        return Query(composite_constraint_query)

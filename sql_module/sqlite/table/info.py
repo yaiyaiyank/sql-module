@@ -96,7 +96,13 @@ class Info:
         self.raw_index_list = self.get_raw_index_list()
 
     def __repr__(self):
-        return f"column_info_list={self.column_info_list}, \nmulti_index_list={self.multi_index_list}"
+        text = "column_info_list:\n"
+        for column_info in self.column_info_list:
+            text += f"{column_info}\n"
+        text += "multi_index_list\n"
+        for multi_index in self.multi_index_list:
+            text += f"{multi_index}\n"
+        return text
 
     def get_raw_column_list(self) -> list[dict[str]]:
         self.driver.execute(f"PRAGMA table_info({self.table_name.now});")

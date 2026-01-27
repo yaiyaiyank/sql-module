@@ -1,13 +1,18 @@
 # いづれsqliteだけでなくPostgreSQLにも対応する予定。MySQLはGPLライセンスなので汚染回避のため採用しない
 from sql_module import utils
+
+# driver
+from sql_module.sqlite.driver import Driver
+
+# querable
+from sql_module.sqlite.query import Querable, Query, query_join_comma
+
+# base1
 from sql_module.sqlite.table.column.column import Column
 from sql_module.sqlite.table.record.record import Field
 
-# querable
-from sql_module.sqlite.query import Querable, Query
-from sql_module.sqlite.table.create.create import Create
-from sql_module.sqlite.table.insert.insert import Insert
-from sql_module.sqlite.table.update.update import Update
+# syntax
+from sql_module.sqlite.table import where
 
 # constraint
 from sql_module.sqlite.table.create.composite_constraint import (
@@ -16,6 +21,7 @@ from sql_module.sqlite.table.create.composite_constraint import (
     PrimaryCompositeConstraint,
 )
 
+# base2
 from sql_module.sqlite.table.table import Table
 from sql_module.sqlite.definition import TableDefinition, IDTableDefinition, AtIDTableDefinition
 from sql_module.sqlite.sqlite import SQLiteDataBase

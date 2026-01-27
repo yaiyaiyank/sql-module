@@ -5,6 +5,7 @@ import datetime
 
 # 主要要素
 from sql_module.sqlite.driver import Driver
+from sql_module.sqlite.query import Query, query_join_comma
 from sql_module.sqlite.table.name import TableName
 from sql_module.sqlite.table.column.name import ColumnName
 from sql_module.sqlite.table.column.column import Column
@@ -16,15 +17,12 @@ from sql_module.sqlite.table.info import Info
 
 # create系
 from sql_module import CompositeConstraint
-from sql_module import Create
 from sql_module.sqlite.table.create.query_builder import CreateQueryBuilder
 
 # insert系
-from sql_module import Insert
 from sql_module.sqlite.table.insert.query_builder import InsertQueryBuilder
 
 # update系
-from sql_module import Update
 from sql_module.sqlite.table.update.query_builder import UpdateQueryBuilder
 
 # utils
@@ -138,7 +136,7 @@ class Table:
             exists_ok (bool): 既にテーブルがあってもok。既に作られたテーブルを上書くことはない
             is_execute (bool): 実行するかどうか。戻り値のCreateオブジェクトをexecuteするならFalseにしないと2度実行されてしまうので注意
         """
-        query_builder = CreateQueryBuilder()
+        query_builder = CreateQueryBuilder(self.driver)
         # 最初のクエリ
         head_query = query_builder.get_head_query(exists_ok)
         # 列定義・列制約のクエリ
@@ -146,10 +144,9 @@ class Table:
         # 表制約のクエリ
         composite_constraint_query = query_builder.get_composite_constraint_query(composite_constraint)
         # 制約クエリ(列+表)
-        constraint_query = utils.join_comma([column_define_constraint_query, composite_constraint_query], no_empty=True)
+        constraint_query = query_join_comma([column_define_constraint_query, composite_constraint_query], no_empty=True)
 
-        query = f"{head_query} {self.name.now} ({constraint_query})"
-        create = Create(driver=self.driver, query=query)
+        create = head_query + f" {self.name.now} (" + constraint_query + ")"
 
         if is_execute:
             create.execute()
@@ -169,7 +166,7 @@ class Table:
         'INSERT INTO work (site_id, content_id, title, channel_id) VALUES (:p0, :p1, :p2, :p3) ON CONFLICT (site_id, content_id) DO UPDATE SET title = excluded.title, channel_id = excluded.channel_id'
         {'p0': 3, 'p1': 20, 'p2': 'おお', 'p3': 1}
         """
-        query_builder = InsertQueryBuilder()
+        query_builder = InsertQueryBuilder(self.driver)
         # 最初のクエリ
         head_query = query_builder.get_head_query()
         # VALUES
@@ -177,8 +174,8 @@ class Table:
         # ON CONFLICT
         on_conflict_query = query_builder.get_on_conflict_query(record)
 
-        query = f"{head_query} {self.name.now} {value_query} {on_conflict_query}"
-        insert = Insert(driver=self.driver, query=query)
+        # query = f"{head_query} {self.name.now} {value_query} {on_conflict_query}"
+        insert = head_query + f" {self.name.now} " + value_query + " " + on_conflict_query
 
         if is_execute:
             insert.execute()
@@ -193,15 +190,20 @@ class Table:
         'UPDATE users SET name = :p0, age = :p1 WHERE id = :p2'
         {'p0': 'Alice', 'p1': 30, 'p2': 1}
         """
-        query_builder = UpdateQueryBuilder()
+        query_builder = UpdateQueryBuilder(self.driver)
+        # 最初のクエリ
         head_query = query_builder.get_head_query()
+        # set部分
         set_query = query_builder.get_set_query(record)
+        # where部分
         where_query = query_builder.get_where_query(where_record)
 
-        query = utils.join_space([head_query, self.name.now, "SET", set_query, where_query], no_empty=True)
-        update = Update(driver=self.driver, query=query, placeholder_dict=query_builder.placeholder_dict)
+        update = head_query + f" {self.name.now} " + set_query + " " + where_query
 
         if is_execute:
             update.execute()
 
         return update
+
+    def select(self):
+        """Whereオブジェクトに__or__で|, __and__で&による結合できるようにする"""

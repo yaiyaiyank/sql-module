@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 import datetime
 from abc import abstractmethod
 
-from sql_module import Table, Column, CompositeConstraint, Create
+from sql_module import Table, Column, CompositeConstraint, Query, Field
 
 
 @dataclass
@@ -21,19 +21,23 @@ class TableDefinition:
     def set_colmun_difinition(self):
         """カラムの定義"""
 
-    def info(self):
+    def info(self, show: bool = True):
         """テーブルの生の声"""
-        return self.table.info()
+        return self.table.info(show)
 
     def create(
         self,
         composite_constraint: list[CompositeConstraint] | CompositeConstraint | None = None,
         exists_ok: bool = True,
         is_execute: bool = True,
-    ) -> Create:
+    ) -> Query:
         column_list = self._get_create_column()
         create = self.table.create(column_list, composite_constraint, exists_ok, is_execute)
         return create
+
+    def insert(self, record: list[Field], is_execute: bool = True):
+        insert = self.table.insert(record, is_execute)
+        return insert
 
     def _get_create_column(self):
         attrs = self.__dict__.values()
@@ -82,6 +86,14 @@ class AtIDTableDefinition(IDTableDefinition):
         self.updated_at_column = self.table.get_column(
             "updated_at", type=datetime.datetime, default_value="CURRENT_TIMESTAMP"
         )
+
+    def insert(self, record: list[Field], is_execute: bool = True):
+        # upsertではupdate込でする
+        update_field = Field(self.updated_at_column, "CURRENT_TIMESTAMP")
+        record.append(update_field)
+
+        insert = self.table.insert(record, is_execute)
+        return insert
 
     @abstractmethod
     def set_colmun_difinition(self):
