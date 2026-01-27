@@ -5,11 +5,16 @@ from sql_module.exceptions import ConstraintConflictError
 from sql_module import Column, utils
 
 
-@dataclass
 class CompositeConstraint:
     """複合キー制約"""
 
-    column_list: list[Column]
+    def __init__(self, *args: Column):
+        self.column_list: list[Column] = list(args)
+        self.valid()
+
+    @abstractmethod
+    def valid(self):
+        pass
 
     @abstractmethod
     def get_query(self) -> str:
@@ -26,9 +31,14 @@ class CompositeConstraint:
 
 
 class UniqueCompositeConstraint(CompositeConstraint):
-    """複合ユニーク"""
+    """
+    複合ユニーク
 
-    def __post_init__(self):
+    Tips:
+        1つ目のカラムは左端プレフィックスにより有利になりやすい
+    """
+
+    def valid(self):
         # 個別にunique設定していた場合はraise
         for column in self.column_list:
             if column.constraint.unique:
@@ -49,7 +59,7 @@ class UniqueCompositeConstraint(CompositeConstraint):
 class PrimaryCompositeConstraint(CompositeConstraint):
     """複合主キー(個人的に主キーはサロゲートキーでないと変更に弱いので非推奨)"""
 
-    def __post_init__(self):
+    def valid(self):
         # 個別にprimary設定していた場合はNone
         for column in self.column_list:
             if column.constraint.primary:

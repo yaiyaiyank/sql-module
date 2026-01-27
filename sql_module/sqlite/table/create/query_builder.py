@@ -3,6 +3,8 @@ from pathlib import Path
 from dataclasses import dataclass
 import datetime
 
+from sql_module.sqlite.driver import Driver
+from sql_module.sqlite.query import Query
 from sql_module import utils
 from sql_module.sqlite.table.column.column import Column, ColumnConstraint
 from sql_module import CompositeConstraint
@@ -10,16 +12,17 @@ from sql_module import CompositeConstraint
 from sql_module.exceptions import ConstraintConflictError, SQLTypeError
 
 
-@dataclass
 class CreateQueryBuilder:
-    @staticmethod
-    def get_head_query(exists_ok: bool) -> str:
+    def __init__(self, driver: Driver):
+        self.driver = driver
+
+    def get_head_query(self, exists_ok: bool) -> Query:
         """最初のクエリ作成"""
         if exists_ok:
-            return "CREATE TABLE IF NOT EXISTS"
-        return "CREATE TABLE"
+            return Query("CREATE TABLE IF NOT EXISTS", driver=self.driver)
+        return Query("CREATE TABLE", driver=self.driver)
 
-    def get_column_define_constraint_query(self, column_list: list[Column]) -> str:
+    def get_column_define_constraint_query(self, column_list: list[Column]) -> Query:
         """
         列定義・列制約のクエリ作成
         [Column(name.now = 'create_dt', constraint.python_type = datetime.date, constraint.not_null = True),
@@ -30,12 +33,14 @@ class CreateQueryBuilder:
         """
         one_column_define_constraint_query_list = []
 
+        # 複数のprimaryはPrimaryCompositeConstraintを使うべし。個人的には非推奨ですが。。。
+
         for column in column_list:
             one_column_define_constraint_query = self._get_one_column_define_constraint_query(column)
             one_column_define_constraint_query_list.append(one_column_define_constraint_query)
 
         column_define_constraint_query = utils.join_comma(one_column_define_constraint_query_list)
-        return column_define_constraint_query
+        return Query(column_define_constraint_query)
 
     def _get_one_column_define_constraint_query(self, column: Column) -> str:
         """
@@ -45,37 +50,12 @@ class CreateQueryBuilder:
         ->
         'text TEXT NOT NULL'
         """
-        sqlite_type = self._get_sqlite_type(column.constraint.python_type)  # "TEXT"など
         constraint_query = self._get_constraint_query(column.constraint)
 
         one_column_define_constraint_query = utils.join_space(
-            [column.name.now, sqlite_type, constraint_query], no_empty=True
+            [column.name.now, column.constraint.sql_type, constraint_query], no_empty=True
         )
         return one_column_define_constraint_query
-
-    def _get_sqlite_type(self, python_type: type) -> str:
-        """
-        str -> 'TEXT'
-        int -> 'INTEGER'
-        みたいな
-        """
-        # 型
-        if python_type == str:
-            return "TEXT"
-        if python_type == bool:
-            return "INTEGER"
-        if python_type == int:
-            return "INTEGER"
-        if python_type == datetime.datetime:
-            return "TEXT"
-        if python_type == datetime.date:
-            return "TEXT"
-        if python_type == Path:
-            return "TEXT"
-        if python_type == bytes:
-            return "BLOB"
-
-        raise SQLTypeError(f"値の型: {type(python_type)}はSQLの型に変換できません。")
 
     def _get_constraint_query(self, constraint: ColumnConstraint) -> str:
         """
@@ -83,7 +63,6 @@ class CreateQueryBuilder:
         ->
         'UNIQUE NOT NULL'
         """
-        # TODO default_valueする
         constraint_str_list = []
         # 主キーのとき
         if constraint.primary:
@@ -103,12 +82,14 @@ class CreateQueryBuilder:
             )
         # default
         if not constraint.default_value is None:
-            constraint_str_list.append(f"DEFAULT {constraint.default_value}")
+            constraint_str_list.append(f"DEFAULT {constraint.sql_default_value}")
 
         constraint_query = utils.join_space(constraint_str_list)
         return constraint_query
 
-    def get_composite_constraint_query(self, composite_constraint_list: list[CompositeConstraint] | None) -> str:
+    def get_composite_constraint_query(
+        self, composite_constraint_list: list[CompositeConstraint] | CompositeConstraint | None
+    ) -> Query:
         """
         [UNIQUECompositeConstraint([Column(name.now='site_id'), Column(name.now='content_id')]),
         UNIQUECompositeConstraint([Column(name.now='post_id'), Column(name.now='name')])]
@@ -117,9 +98,11 @@ class CreateQueryBuilder:
         """
         if composite_constraint_list is None:
             composite_constraint_list = []
+        if isinstance(composite_constraint_list, CompositeConstraint):
+            composite_constraint_list = [composite_constraint_list]
         composite_constraint_query_list = [
             one_composite_constraint_query.get_query() for one_composite_constraint_query in composite_constraint_list
         ]
         composite_constraint_query = utils.join_comma(composite_constraint_query_list)
 
-        return composite_constraint_query
+        return Query(composite_constraint_query)

@@ -42,7 +42,7 @@ class Driver:
         if not self.status.conn:
             self.open_conn()
             # これをしないと外部キー制約がオフになったまま(connect時毎回必要)
-            self.execute_cursor("PRAGMA foreign_keys = ON")
+            self.execute("PRAGMA foreign_keys = ON")
             # これをしないとデフォルトではfetchがタプルで帰ってきてしまう
         if not self.status.cursor:
             self.open_cursor()
@@ -76,7 +76,7 @@ class Driver:
     def begin(self):
         self.conn.execute("BEGIN")
 
-    def execute_cursor(self, query: str, parameters: dict[str] | None = None, time_log: bool = False):
+    def execute(self, query: str, parameters: dict[str] | None = None, time_log: bool = False):
         """
         cursorを実行
 
@@ -111,7 +111,7 @@ class Driver:
         if time_log:
             print(f"コミット時間: {time_end - time_start:10f}s")
 
-    def fetchall(self, dict_output: bool = False, time_log: bool = False) -> list[dict[str]]:
+    def fetchall(self, dict_output: bool = False, time_log: bool = False) -> list[dict[str]] | list[sqlite3.Row]:
         """全行取り出す"""
         time_start = time.time()
         fetchall_list = self.cursor.fetchall()
@@ -122,7 +122,7 @@ class Driver:
             print(f"fetch時間: {time_end - time_start:10f}s")
         return fetchall_list
 
-    def fetchone(self, dict_output: bool = False, time_log: bool = False) -> dict[str]:
+    def fetchone(self, dict_output: bool = False, time_log: bool = False) -> dict[str] | sqlite3.Row:
         """1行取り出す"""
         time_start = time.time()
         fetchone = self.cursor.fetchone()
@@ -135,10 +135,12 @@ class Driver:
             print(f"fetch時間: {time_end - time_start:10f}s")
         return fetchone
 
-    def fetchmany(self, rows_count: int, dict_output: bool = False, time_log: bool = False) -> list[dict[str]]:
+    def fetchmany(
+        self, limit: int, dict_output: bool = False, time_log: bool = False
+    ) -> list[dict[str]] | list[sqlite3.Row]:
         """何行か取り出す"""
         time_start = time.time()
-        fetchmany_list = self.cursor.fetchmany(rows_count)
+        fetchmany_list = self.cursor.fetchmany(limit)
         if dict_output:
             fetchmany_list = [dict(fetch) for fetch in fetchmany_list]
         time_end = time.time()

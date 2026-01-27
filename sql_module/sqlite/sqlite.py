@@ -6,6 +6,9 @@ from sql_module.sqlite.table.name import TableName
 
 from sql_module import Table, TableDefinition, IDTableDefinition, AtIDTableDefinition
 
+# utils
+from sql_module import utils
+
 
 @dataclass
 class SQLiteDataBase:
@@ -20,13 +23,19 @@ class SQLiteDataBase:
         table_name = TableName(name)
         return Table(driver=self.driver, name=table_name)
 
-    def get_table_definition(self, name: str, _ClassInfo: TableDefinition) -> TableDefinition:
-        table_name = TableName(name)
-        table = Table(driver=self.driver, name=table_name)
-        table_definition = _ClassInfo(table)
+    def get_table_definition(self, table_definition_class: type, name: str | None = None) -> TableDefinition:
+        """
+        TableDefinitionオブジェクトを取得
+        デフォルトではtable_definition_classのキャメルをスネークしたものをテーブル名とする
+        """
+        if name is None:
+            name = utils.camel_to_snake(table_definition_class.__name__)
+        table = self.get_table(name)
+
+        table_definition = table_definition_class(table)
         return table_definition
 
     def get_exists_table_list(self) -> list[Table]:
-        self.driver.execute_cursor("SELECT name FROM sqlite_master WHERE type='table';")
+        self.driver.execute("SELECT name FROM sqlite_master WHERE type='table';")
         tables = self.driver.fetchall()
-        return [Table(driver=self.driver, name=TableName(table[0])) for table in tables]
+        return [self.get_table(table[0]) for table in tables]

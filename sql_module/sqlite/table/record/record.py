@@ -5,18 +5,16 @@ import datetime
 
 # このライブラリ
 from sql_module import Column
-from sql_module.sqlite.table.sql_value import python_value_to_sql_value
 
 
 @dataclass
 class Field:
-    """insertや"""
+    """insertやupdateなどで挿入するレコードの要素"""
 
     column: Column
     value: str | int | bytes | Path | datetime.date | None
     upsert: bool = False
-    is_log: bool = True
 
     @property
     def sql_value(self):
-        return python_value_to_sql_value(self.value)
+        return self.column.constraint.get_sql_value(self.value)
