@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 import datetime
 from abc import abstractmethod
 
-from sql_module import Table, Column, CompositeConstraint, Query, Field
+from sql_module import Table, Column, CompositeConstraint, Query, Field, wheres
 
 
 @dataclass
@@ -88,12 +88,27 @@ class AtIDTableDefinition(IDTableDefinition):
         )
 
     def insert(self, record: list[Field], is_execute: bool = True):
-        # upsertではupdate込でする
-        update_field = Field(self.updated_at_column, "CURRENT_TIMESTAMP")
+        # upsertでのupdate時に必要
+        update_field = Field(self.updated_at_column, datetime.datetime.now(datetime.timezone.utc))
         record.append(update_field)
 
         insert = self.table.insert(record, is_execute)
         return insert
+
+    def update(self, record: list[Field], where: wheres.Where | None = None, is_execute: bool = True) -> Query:
+        # updateで必要
+        update_field = Field(self.updated_at_column, datetime.datetime.now(datetime.timezone.utc))
+        record.append(update_field)
+
+        insert = self.table.update(record, where, is_execute)
+        return insert
+
+    def select(
+        self, column_list: list[Column] | None = None, where: wheres.Where | None = None, is_execute: bool = True
+    ) -> Query:
+        # もしかしたらサブクエリやるかも
+        select = self.table.select(column_list, where, is_execute)
+        return select
 
     @abstractmethod
     def set_colmun_difinition(self):

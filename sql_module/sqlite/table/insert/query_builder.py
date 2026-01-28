@@ -3,9 +3,7 @@ from pathlib import Path
 from dataclasses import dataclass
 import datetime
 
-from sql_module.sqlite.driver import Driver
-from sql_module.sqlite.query import Query, query_join_comma
-from sql_module import utils, Field
+from sql_module import utils, Driver, Field, Query, query_join_comma
 
 
 @dataclass
