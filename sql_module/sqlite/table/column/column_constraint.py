@@ -135,6 +135,3 @@ class ColumnConstraint:
         raise SQLTypeError(
             f"その値の型: {type(python_value)} は、sqliteでいう型: {python_value.__class__.__name__} に対応する型に変換できません。"
         )
-
-
-""
