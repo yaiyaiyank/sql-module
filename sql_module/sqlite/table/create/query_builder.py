@@ -3,11 +3,8 @@ from pathlib import Path
 from dataclasses import dataclass
 import datetime
 
-from sql_module.sqlite.driver import Driver
-from sql_module.sqlite.query import Query
-from sql_module import utils
-from sql_module.sqlite.table.column.column import Column, ColumnConstraint
-from sql_module import CompositeConstraint
+from sql_module import utils, Driver, Column, Query, query_join_comma, CompositeConstraint
+from sql_module.sqlite.table.column.column import ColumnConstraint
 
 from sql_module.exceptions import ConstraintConflictError, SQLTypeError
 

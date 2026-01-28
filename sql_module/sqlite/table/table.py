@@ -25,8 +25,11 @@ from sql_module.sqlite.table.insert.query_builder import InsertQueryBuilder
 # update系
 from sql_module.sqlite.table.update.query_builder import UpdateQueryBuilder
 
+# select系
+from sql_module.sqlite.table.select.query_builder import SelectQueryBuilder
+
 # utils
-from sql_module import utils
+from sql_module import utils, wheres
 
 # exceptions
 from sql_module.exceptions import ColumnAlreadyRegistrationError, FetchNotFoundError
@@ -123,7 +126,7 @@ class Table:
         composite_constraint: list[CompositeConstraint] | CompositeConstraint | None = None,
         exists_ok: bool = True,
         is_execute: bool = True,
-    ):
+    ) -> Query:
         """
         テーブル作成
 
@@ -153,7 +156,7 @@ class Table:
 
         return create
 
-    def insert(self, record: list[Field], is_execute: bool = True):
+    def insert(self, record: list[Field], is_execute: bool = True) -> Query:
         """
         行を挿入
         今はバルク非対応
@@ -182,7 +185,7 @@ class Table:
 
         return insert
 
-    def update(self, record: list[Field], where_record: list[Field] | None = None, is_execute: bool = True):
+    def update(self, record: list[Field], where: wheres.Where | None = None, is_execute: bool = True) -> Query:
         """
         行を更新
 
@@ -196,7 +199,7 @@ class Table:
         # set部分
         set_query = query_builder.get_set_query(record)
         # where部分
-        where_query = query_builder.get_where_query(where_record)
+        where_query = query_builder.get_where_query(where)
 
         update = head_query + f" {self.name.now} " + set_query + " " + where_query
 
@@ -205,5 +208,29 @@ class Table:
 
         return update
 
-    def select(self):
-        """Whereオブジェクトに__or__で|, __and__で&による結合できるようにする"""
+    def select(
+        self, column_list: list[Column] | None = None, where: wheres.Where | None = None, is_execute: bool = True
+    ) -> Query:
+        """
+        行を更新
+
+        クエリ・パラメータ例:
+        'SELECT * FROM work WHERE id = :p0'
+        {'p0': 3}
+        """
+        query_builder = SelectQueryBuilder(self.driver)
+        # 最初のクエリ
+        head_query = query_builder.get_head_query()
+        # column_list部分のクエリ
+        select_column_query = query_builder.get_select_column_query(column_list)
+        # from部分のクエリ
+        from_query = query_builder.get_from_query(self.name)
+        # where部分のクエリ
+        where_query = query_builder.get_where_query(where)
+
+        select = head_query + " " + select_column_query + " " + from_query + " " + where_query
+
+        if is_execute:
+            select.execute()
+
+        return select

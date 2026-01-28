@@ -5,16 +5,6 @@ from pathlib import Path
 import datetime
 
 
-@dataclass
-class Querable:
-    driver: Driver
-    query: str
-    placeholder_dict: dict = field(default_factory=dict)
-
-    def execute(self):
-        self.driver.execute(self.query, self.placeholder_dict)
-
-
 class Query:
     def __init__(self, first_string: str | None = None, driver: Driver = None):
         """sqlのクエリを司るオブジェクト。+で文字結合, *で値結合して使う"""
