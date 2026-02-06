@@ -1,8 +1,22 @@
 # 標準ライブラリ
 from dataclasses import dataclass
+import sqlite3
 
 from sql_module import utils, Driver, Field, wheres, Query, query_join_comma, Column
 from sql_module.sqlite.table.name import TableName
+
+
+class Select(wheres.Where):
+    def fetchall(self, dict_output: bool = False, time_log: bool = False) -> list[dict[str]] | list[sqlite3.Row]:
+        return self.driver.fetchall(dict_output, time_log)
+
+    def fetchmany(
+        self, limit: int, dict_output: bool = False, time_log: bool = False
+    ) -> list[dict[str]] | list[sqlite3.Row]:
+        return self.driver.fetchmany(limit, dict_output, time_log)
+
+    def fetchone(self, dict_output: bool = False, time_log: bool = False) -> dict[str] | sqlite3.Row:
+        return self.driver.fetchone(dict_output, time_log)
 
 
 @dataclass

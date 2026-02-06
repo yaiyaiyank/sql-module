@@ -50,15 +50,16 @@ class ColumnConstraint:
         if self.default_value is None:
             raise TypeError("デフォルト値がNoneの場合は設定しなくても良いです")
 
-        sql_default_value = self.get_sql_value(self.default_value, is_raw=True)
+        sql_default_value = self.get_sql_value(self.default_value, is_not_placeholder=True)
 
         return sql_default_value
 
     def get_sql_value(
-        self, python_value: str | int | bytes | Path | datetime.date | None, is_raw: bool = False
+        self, python_value: str | int | bytes | Path | datetime.date | None, is_not_placeholder: bool = False
     ) -> str | int | sqlite3.Binary | None:
         """
         pythonの値をsqlの値に変換
+        is_not_placeholderはデフォルト値など、プレースホルダを使わずに入力しなければならないとき
 
         insert, update, selectなどに使う
         """
@@ -81,17 +82,12 @@ class ColumnConstraint:
             if isinstance(python_value, datetime.datetime):
                 # microsecondやtimezoneがあったら取り除きながら datetime.datetime(2026, 1, 28, 3, 21, 53) -> '2026-01-28 03:21:53'
                 sql_value = python_value.replace(microsecond=0).strftime("%Y-%m-%d %H:%M:%S")
-                if is_raw:
-                    return f"'{sql_value}'"
-                else:
-                    return sql_value
+                return self._get_not_placeholder_string(sql_value, is_not_placeholder)
+
             if isinstance(python_value, datetime.date):
                 # timezoneがあったら取り除きながら datetime.date(2026, 1, 28) -> '2026-01-28 00:00:00'
                 sql_value = datetime.datetime.combine(python_value, datetime.time()).strftime("%Y-%m-%d %H:%M:%S")
-                if is_raw:
-                    return f"'{sql_value}'"
-                else:
-                    return sql_value
+                return self._get_not_placeholder_string(sql_value, is_not_placeholder)
 
         # 文字列やパスの場合はクォーテーションが必要
         if self.python_type in [str, Path]:
@@ -100,10 +96,7 @@ class ColumnConstraint:
                 raise TypeError(
                     f"sqliteにそのstr系オブジェクトに、入力した型: {python_value.__class__.__name__} は対応していません。"
                 )
-            if is_raw:
-                return f"'{python_value}'"
-            else:
-                return f"{python_value}"
+            return self._get_not_placeholder_string(python_value, is_not_placeholder)
 
         # BLOBの場合はhexしてX&クォーテーションが必要
         if self.python_type in [bytes]:
@@ -135,3 +128,8 @@ class ColumnConstraint:
         raise SQLTypeError(
             f"その値の型: {type(python_value)} は、sqliteでいう型: {python_value.__class__.__name__} に対応する型に変換できません。"
         )
+
+    def _get_not_placeholder_string(self, string: Path | str, is_not_placeholder: bool):
+        if is_not_placeholder:
+            return f"'{string}'"
+        return f"{string}"
