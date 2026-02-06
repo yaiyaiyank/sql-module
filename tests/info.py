@@ -1,3 +1,5 @@
+"""info用にめちゃくちゃ適当な値を入れている"""
+
 import sql_module
 import datetime
 from dataclasses import dataclass, field
