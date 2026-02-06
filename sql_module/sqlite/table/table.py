@@ -20,7 +20,7 @@ from sql_module import CompositeConstraint
 from sql_module.sqlite.table.create.query_builder import CreateQueryBuilder
 
 # insert系
-from sql_module.sqlite.table.insert.query_builder import InsertQueryBuilder
+from sql_module.sqlite.table.insert.query_builder import InsertQueryBuilder, Insert
 
 # update系
 from sql_module.sqlite.table.update.query_builder import UpdateQueryBuilder
@@ -156,7 +156,7 @@ class Table:
 
         return create
 
-    def insert(self, record: list[Field], is_execute: bool = True) -> Query:
+    def insert(self, record: list[Field], is_execute: bool = True, is_returning_id: bool = False) -> Insert:
         """
         行を挿入
         今はバルク非対応
@@ -176,9 +176,16 @@ class Table:
         value_query = query_builder.get_value_query(record)
         # ON CONFLICT
         on_conflict_query = query_builder.get_on_conflict_query(record)
+        # RETURNING id
+        returning_id_query = query_builder.get_returning_id_query(is_returning_id)
 
         # query = f"{head_query} {self.name.now} {value_query} {on_conflict_query}"
-        insert = head_query + f" {self.name.now} " + value_query + " " + on_conflict_query
+        insert_base = (
+            head_query + f" {self.name.now} " + value_query + " " + on_conflict_query + " " + returning_id_query
+        )
+
+        insert = Insert()
+        insert.straight_set(insert_base)
 
         if is_execute:
             insert.execute()

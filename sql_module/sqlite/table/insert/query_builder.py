@@ -4,6 +4,22 @@ from dataclasses import dataclass
 import datetime
 
 from sql_module import utils, Driver, Field, Query, query_join_comma
+from sql_module.exceptions import FetchNotFoundError
+
+
+class Insert(Query):
+    def fetch_id(self):
+        """insert後にidをfetch"""
+        try:
+            id_dict = self.driver.fetchone()
+            return id_dict["id"]
+        except FetchNotFoundError:
+            if not "RETURNING id" in self.__str__():
+                raise FetchNotFoundError("insert時の引数でis_returning_idをTrueにしてください")
+            if "DO NOTHING" in self.__str__():
+                # 'DO NOTHING'の文字は値に含まれているかもしれないが、それはプレースホルダなのでこの分岐で問題ないと判断
+                raise FetchNotFoundError("全てのカラムがon conflictな場合、insertでidを取得できません。")
+            raise
 
 
 @dataclass
@@ -55,10 +71,10 @@ class InsertQueryBuilder:
         # k < 0
         on_conflict_keys_query = self._get_on_conflict_keys_query(on_conflict_keys)
         ## k == n
-        if on_conflict_keys.__len__() == non_conflict_keys.__len__():
+        if on_conflict_keys.__len__() == record.__len__():
             return Query(f"ON CONFLICT ({on_conflict_keys_query}) DO NOTHING")
         ## k < n
-        non_conflict_keys_query = self._get_non_conflict_keys_query(on_conflict_keys)
+        non_conflict_keys_query = self._get_non_conflict_keys_query(non_conflict_keys)
         return Query(f"ON CONFLICT ({on_conflict_keys_query}) DO UPDATE SET {non_conflict_keys_query}")
 
     def _get_on_conflict_keys_query(self, on_conflict_keys: list[str]) -> str:
@@ -73,3 +89,9 @@ class InsertQueryBuilder:
         ]
         on_conflict_keys_query = utils.join_comma(non_conflict_key_query_list)
         return on_conflict_keys_query
+
+    def get_returning_id_query(self, is_returning_id: bool = False) -> Query:
+        if is_returning_id:
+            return Query("RETURNING id")
+
+        return Query()

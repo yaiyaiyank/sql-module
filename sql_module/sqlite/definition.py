@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 import datetime
 from abc import abstractmethod
 
-from sql_module import Table, Column, CompositeConstraint, Query, Field, wheres
+from sql_module import Table, Column, CompositeConstraint, Query, Field, wheres, Insert
 
 
 @dataclass
@@ -35,7 +35,7 @@ class TableDefinition:
         create = self.table.create(column_list, composite_constraint, exists_ok, is_execute)
         return create
 
-    def insert(self, record: list[Field], is_execute: bool = True):
+    def insert(self, record: list[Field], is_execute: bool = True) -> Insert:
         insert = self.table.insert(record, is_execute)
         return insert
 
@@ -87,12 +87,12 @@ class AtIDTableDefinition(IDTableDefinition):
             "updated_at", type=datetime.datetime, default_value="CURRENT_TIMESTAMP"
         )
 
-    def insert(self, record: list[Field], is_execute: bool = True):
+    def insert(self, record: list[Field], is_execute: bool = True, is_returning_id: bool = False) -> Insert:
         # upsertでのupdate時に必要
         update_field = Field(self.updated_at_column, datetime.datetime.now(datetime.timezone.utc))
         record.append(update_field)
 
-        insert = self.table.insert(record, is_execute)
+        insert = self.table.insert(record, is_execute, is_returning_id)
         return insert
 
     def update(self, record: list[Field], where: wheres.Where | None = None, is_execute: bool = True) -> Query:

@@ -14,6 +14,9 @@ from sql_module.sqlite.table.record.record import Field
 # syntax
 from sql_module.sqlite.table import where as wheres
 
+# query2
+from sql_module.sqlite.table.insert.query_builder import Insert
+
 # constraint
 from sql_module.sqlite.table.create.composite_constraint import (
     CompositeConstraint,

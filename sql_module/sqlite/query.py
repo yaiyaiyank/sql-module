@@ -7,7 +7,10 @@ import datetime
 
 class Query:
     def __init__(self, first_string: str | None = None, driver: Driver = None):
-        """sqlのクエリを司るオブジェクト。+で文字結合, *で値結合して使う"""
+        """
+        sqlのクエリを司るオブジェクト。+で文字結合, *で値結合して使う
+        # TODO Python3.14からテンプレート文字列というのがあるらしい。これ使えるんじゃね...?
+        """
         self.driver = driver
 
         # 最初の文字を設定
@@ -50,7 +53,7 @@ class Query:
             self.string_list += other.string_list[1:]  # 要素数が1でも ["aaa"][1:] -> [] ってなるので問題ないです。
             # valueのselfとotherをつなげる
             self.value_list += other.value_list
-            # selfかotherにdriverがあったらどっちか採用する
+            # selfかotherにdriverがあったら採用する
             self._merge_driver(other.driver)
 
             return self
