@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 import datetime
 from abc import abstractmethod
 
-from sql_module import Table, Column, CompositeConstraint, Query, Field, wheres, Insert
+from sql_module import Table, Column, CompositeConstraint, Query, Field, wheres, Insert, Update, Select
 
 
 @dataclass
@@ -35,9 +35,26 @@ class TableDefinition:
         create = self.table.create(column_list, composite_constraint, exists_ok, is_execute)
         return create
 
-    def insert(self, record: list[Field], is_execute: bool = True) -> Insert:
-        insert = self.table.insert(record, is_execute)
+    def insert(self, record: list[Field], is_execute: bool = True, is_returning_id: bool = False) -> Insert:
+        insert = self.table.insert(record, is_execute, is_returning_id)
         return insert
+
+    def update(
+        self,
+        record: list[Field],
+        where: wheres.Where | None = None,
+        is_execute: bool = True,
+        is_returning_id: bool = False,
+    ) -> Update:
+        update = self.table.update(record, where, is_execute, is_returning_id)
+        return update
+
+    def select(
+        self, column_list: list[Column] | None = None, where: wheres.Where | None = None, is_execute: bool = True
+    ) -> Select:
+        # もしかしたらサブクエリやるかも
+        select = self.table.select(column_list, where, is_execute)
+        return select
 
     def _get_create_column(self):
         attrs = self.__dict__.values()
@@ -88,6 +105,7 @@ class AtIDTableDefinition(IDTableDefinition):
         )
 
     def insert(self, record: list[Field], is_execute: bool = True, is_returning_id: bool = False) -> Insert:
+        record = record.copy()
         # upsertでのupdate時に必要
         update_field = Field(self.updated_at_column, datetime.datetime.now(datetime.timezone.utc))
         record.append(update_field)
@@ -95,20 +113,20 @@ class AtIDTableDefinition(IDTableDefinition):
         insert = self.table.insert(record, is_execute, is_returning_id)
         return insert
 
-    def update(self, record: list[Field], where: wheres.Where | None = None, is_execute: bool = True) -> Query:
+    def update(
+        self,
+        record: list[Field],
+        where: wheres.Where | None = None,
+        is_execute: bool = True,
+        is_returning_id: bool = False,
+    ) -> Update:
+        record = record.copy()
         # updateで必要
         update_field = Field(self.updated_at_column, datetime.datetime.now(datetime.timezone.utc))
         record.append(update_field)
 
-        insert = self.table.update(record, where, is_execute)
+        insert = self.table.update(record, where, is_execute, is_returning_id)
         return insert
-
-    def select(
-        self, column_list: list[Column] | None = None, where: wheres.Where | None = None, is_execute: bool = True
-    ) -> Query:
-        # もしかしたらサブクエリやるかも
-        select = self.table.select(column_list, where, is_execute)
-        return select
 
     @abstractmethod
     def set_colmun_difinition(self):

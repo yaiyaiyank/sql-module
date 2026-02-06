@@ -8,7 +8,7 @@ from sql_module.exceptions import FetchNotFoundError
 
 
 class Insert(Query):
-    def fetch_id(self):
+    def fetch_id(self) -> int:
         """insert後にidをfetch"""
         try:
             id_dict = self.driver.fetchone()

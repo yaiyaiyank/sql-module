@@ -120,6 +120,8 @@ class Query:
             query_string += f":{value_name}{string}"
             placeholder_dict[value_name] = value
 
+        query_string = query_string.strip()
+
         return query_string, placeholder_dict
 
 

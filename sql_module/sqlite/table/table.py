@@ -23,10 +23,10 @@ from sql_module.sqlite.table.create.query_builder import CreateQueryBuilder
 from sql_module.sqlite.table.insert.query_builder import InsertQueryBuilder, Insert
 
 # update系
-from sql_module.sqlite.table.update.query_builder import UpdateQueryBuilder
+from sql_module.sqlite.table.update.query_builder import UpdateQueryBuilder, Update
 
 # select系
-from sql_module.sqlite.table.select.query_builder import SelectQueryBuilder
+from sql_module.sqlite.table.select.query_builder import SelectQueryBuilder, Select
 
 # utils
 from sql_module import utils, wheres
@@ -192,7 +192,13 @@ class Table:
 
         return insert
 
-    def update(self, record: list[Field], where: wheres.Where | None = None, is_execute: bool = True) -> Query:
+    def update(
+        self,
+        record: list[Field],
+        where: wheres.Where | None = None,
+        is_execute: bool = True,
+        is_returning_id: bool = False,
+    ) -> Update:
         """
         行を更新
 
@@ -207,8 +213,13 @@ class Table:
         set_query = query_builder.get_set_query(record)
         # where部分
         where_query = query_builder.get_where_query(where)
+        # RETURNING id
+        returning_id_query = query_builder.get_returning_id_query(is_returning_id)
 
-        update = head_query + f" {self.name.now} " + set_query + " " + where_query
+        update_base = head_query + f" {self.name.now} " + set_query + " " + where_query + " " + returning_id_query
+
+        update = Update()
+        update.straight_set(update_base)
 
         if is_execute:
             update.execute()
@@ -217,7 +228,7 @@ class Table:
 
     def select(
         self, column_list: list[Column] | None = None, where: wheres.Where | None = None, is_execute: bool = True
-    ) -> Query:
+    ) -> Select:
         """
         行を更新
 
@@ -235,7 +246,10 @@ class Table:
         # where部分のクエリ
         where_query = query_builder.get_where_query(where)
 
-        select = head_query + " " + select_column_query + " " + from_query + " " + where_query
+        select_base = head_query + " " + select_column_query + " " + from_query + " " + where_query
+
+        select = Select()
+        select.straight_set(select_base)
 
         if is_execute:
             select.execute()

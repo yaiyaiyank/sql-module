@@ -66,3 +66,33 @@ def get_table_definition(db_path: Path | str | None = None):
     )
 
     return user, screen_name, user_screen_name, user_screen_uni
+
+
+# -----------ユーザーのプロフ系insert-----------
+def insert_screen_name(screen_name: sql_module.AtIDTableDefinition, screen_name_: str) -> int:
+    screen_name_record = [sql_module.Field(screen_name.screen_name_column, screen_name_, upsert=True)]
+    insert = screen_name.insert(screen_name_record, is_returning_id=True)
+    screen_name_id = insert.fetch_id()
+    return screen_name_id
+
+
+def insert_user(
+    user: sql_module.AtIDTableDefinition, rest_id: str, name: str, screen_name_id: int, description: str
+) -> int:
+    user_record = [
+        sql_module.Field(user._rest_id_column, rest_id, upsert=True),
+        sql_module.Field(user.current_name_column, name),
+        sql_module.Field(user.current_screen_name_id_column, screen_name_id),
+        sql_module.Field(user.description_column, description),
+    ]
+    insert = user.insert(user_record, is_returning_id=True)
+    return insert.fetch_id()
+
+
+def insert_user_screen_name(user_screen_name: sql_module.AtIDTableDefinition, user_id: int, screen_name_id: int) -> int:
+    user_screen_name_record = [
+        sql_module.Field(user_screen_name.user_id_column, user_id, upsert=True),
+        sql_module.Field(user_screen_name.screen_name_id_column, screen_name_id, upsert=True),
+    ]
+    insert = user_screen_name.insert(user_screen_name_record, is_returning_id=True)
+    return insert.fetch_id()

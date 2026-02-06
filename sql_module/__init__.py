@@ -16,6 +16,8 @@ from sql_module.sqlite.table import where as wheres
 
 # query2
 from sql_module.sqlite.table.insert.query_builder import Insert
+from sql_module.sqlite.table.update.query_builder import Update
+from sql_module.sqlite.table.select.query_builder import Select
 
 # constraint
 from sql_module.sqlite.table.create.composite_constraint import (
