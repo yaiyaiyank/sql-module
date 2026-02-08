@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from pathlib import Path
 import datetime
 from abc import abstractmethod
 
@@ -21,6 +22,18 @@ class TableDefinition:
     def set_colmun_difinition(self):
         """カラムの定義"""
 
+    def get_column(
+        self,
+        name: str,
+        type: type,
+        unique: bool = False,
+        not_null: bool = False,
+        primary: bool = False,  # AUTO_INCREMENTは廃止されました。そのうちuuid対応するかも
+        references: Column | None = None,
+        default_value: str | int | bytes | Path | datetime.date | None = None,  # bool, datetime.datetime内包
+    ) -> Column:
+        return self.table.get_column(name, type, unique, not_null, primary, references, default_value)
+
     def info(self, show: bool = True):
         """テーブルの生の声"""
         return self.table.info(show)
@@ -35,13 +48,13 @@ class TableDefinition:
         create = self.table.create(column_list, composite_constraint, exists_ok, is_execute)
         return create
 
-    def insert(self, record: list[Field], is_execute: bool = True, is_returning_id: bool = False) -> Insert:
+    def insert(self, record: list[Field] | Field, is_execute: bool = True, is_returning_id: bool = False) -> Insert:
         insert = self.table.insert(record, is_execute, is_returning_id)
         return insert
 
     def update(
         self,
-        record: list[Field],
+        record: list[Field] | Field,
         where: wheres.Where | None = None,
         is_execute: bool = True,
         is_returning_id: bool = False,
@@ -50,7 +63,10 @@ class TableDefinition:
         return update
 
     def select(
-        self, column_list: list[Column] | None = None, where: wheres.Where | None = None, is_execute: bool = True
+        self,
+        column_list: list[Column] | Column | None = None,
+        where: wheres.Where | None = None,
+        is_execute: bool = True,
     ) -> Select:
         # もしかしたらサブクエリやるかも
         select = self.table.select(column_list, where, is_execute)
@@ -104,7 +120,9 @@ class AtIDTableDefinition(IDTableDefinition):
             "updated_at", type=datetime.datetime, default_value="CURRENT_TIMESTAMP"
         )
 
-    def insert(self, record: list[Field], is_execute: bool = True, is_returning_id: bool = False) -> Insert:
+    def insert(self, record: list[Field] | Field, is_execute: bool = True, is_returning_id: bool = False) -> Insert:
+        if isinstance(record, Field):
+            record = [record]
         record = record.copy()
         # upsertでのupdate時に必要
         update_field = Field(self.updated_at_column, datetime.datetime.now(datetime.timezone.utc))
@@ -115,11 +133,13 @@ class AtIDTableDefinition(IDTableDefinition):
 
     def update(
         self,
-        record: list[Field],
+        record: list[Field] | Field,
         where: wheres.Where | None = None,
         is_execute: bool = True,
         is_returning_id: bool = False,
     ) -> Update:
+        if isinstance(record, Field):
+            record = [record]
         record = record.copy()
         # updateで必要
         update_field = Field(self.updated_at_column, datetime.datetime.now(datetime.timezone.utc))

@@ -31,7 +31,9 @@ class InsertQueryBuilder:
         """最初のクエリ作成"""
         return Query("INSERT INTO", driver=self.driver)
 
-    def get_value_query(self, record: list[Field]) -> Query:
+    def get_value_query(self, record: list[Field] | Field) -> Query:
+        if isinstance(record, Field):
+            record = [record]
         keys = self._get_keys(record)
         place_holder_keys_query = self._get_place_holder_keys_query_query(record)
         return f"({keys}) VALUES (" + place_holder_keys_query + ")"
@@ -53,13 +55,15 @@ class InsertQueryBuilder:
         place_holder_keys_query = query_join_comma(query_list)
         return place_holder_keys_query
 
-    def get_on_conflict_query(self, record: list[Field]) -> Query:
+    def get_on_conflict_query(self, record: list[Field] | Field) -> Query:
         """
         conflict句の部分のクエリ
 
         kをupsertがTrueのfieldの数、nをfieldの数とする。ちなみに、以下がなりたつ。
         0 <= k <= n
         """
+        if isinstance(record, Field):
+            record = [record]
         # [Field(column.name.now = 'site_id', upsert=True), Field(column.name.now = 'content_id', upsert=True), Field(column.name.now = 'title')]
         # ->
         # on_conflict_keys = ['site_id', 'content_id'], non_conflict_keys = ['title']

@@ -26,10 +26,12 @@ class UpdateQueryBuilder:
         """UPDATE句"""
         return Query("UPDATE", driver=self.driver)
 
-    def get_set_query(self, record: list[Field]) -> Query:
+    def get_set_query(self, record: list[Field] | Field) -> Query:
         """
         SET句
         """
+        if isinstance(record, Field):
+            record = [record]
         set_query_list = []
         set_query = Query()
         for field_ in record:
