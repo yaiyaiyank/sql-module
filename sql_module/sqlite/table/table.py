@@ -156,7 +156,7 @@ class Table:
 
         return create
 
-    def insert(self, record: list[Field], is_execute: bool = True, is_returning_id: bool = False) -> Insert:
+    def insert(self, record: list[Field] | Field, is_execute: bool = True, is_returning_id: bool = False) -> Insert:
         """
         行を挿入
         今はバルク非対応
@@ -194,7 +194,7 @@ class Table:
 
     def update(
         self,
-        record: list[Field],
+        record: list[Field] | Field,
         where: wheres.Where | None = None,
         is_execute: bool = True,
         is_returning_id: bool = False,
@@ -227,7 +227,10 @@ class Table:
         return update
 
     def select(
-        self, column_list: list[Column] | None = None, where: wheres.Where | None = None, is_execute: bool = True
+        self,
+        column_list: list[Column] | Column | None = None,
+        where: wheres.Where | None = None,
+        is_execute: bool = True,
     ) -> Select:
         """
         行を更新

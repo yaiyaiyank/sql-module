@@ -28,7 +28,9 @@ class SelectQueryBuilder:
         """SELECT句"""
         return Query("SELECT", driver=self.driver)
 
-    def get_select_column_query(self, column_list: list[Column]) -> Query:
+    def get_select_column_query(self, column_list: list[Column] | Column) -> Query:
+        if isinstance(column_list, Column):
+            column_list = [column_list]
         if column_list is None:
             select_column_query = "*"
         else:
