@@ -2,14 +2,11 @@
 from pathlib import Path
 from dataclasses import dataclass, field
 import datetime
+from typing import Self, Literal
 
 # 主要要素
-from sql_module.sqlite.driver import Driver
-from sql_module.sqlite.query import Query, query_join_comma
 from sql_module.sqlite.table.name import TableName
 from sql_module.sqlite.table.column.name import ColumnName
-from sql_module.sqlite.table.column.column import Column
-from sql_module.sqlite.table.record.record import Field
 from sql_module.sqlite.table.column.column_constraint import ColumnConstraint
 
 # info
@@ -29,10 +26,7 @@ from sql_module.sqlite.table.update.query_builder import UpdateQueryBuilder, Upd
 from sql_module.sqlite.table.select.query_builder import SelectQueryBuilder, Select
 
 # utils
-from sql_module import utils, wheres
-
-# exceptions
-from sql_module.exceptions import ColumnAlreadyRegistrationError, FetchNotFoundError
+from sql_module import exceptions, utils, Driver, Query, query_join_comma, Column, Field, wheres
 
 # テーブルのメイン操作系
 
@@ -86,7 +80,7 @@ class Table:
         try:
             self.driver.fetchone()
             return True
-        except FetchNotFoundError:
+        except exceptions.FetchNotFoundError:
             return False
 
     def info(self, show: bool = True) -> Info:
@@ -153,13 +147,19 @@ class Table:
 
         if is_execute:
             create.execute()
+            create.commit()
 
         return create
 
-    def insert(self, record: list[Field] | Field, is_execute: bool = True, is_returning_id: bool = False) -> Insert:
+    def insert(
+        self,
+        record: list[Field] | Field,
+        is_execute: bool = True,
+        is_returning_id: bool = False,
+        time_log: Literal["print_log"] | utils.PrintLog | None = None,
+    ) -> Insert:
         """
         行を挿入
-        今はバルク非対応
 
         クエリ・パラメータ例:
         'INSERT INTO users (name, age) VALUES (:p0, :p1)'
@@ -188,9 +188,33 @@ class Table:
         insert.straight_set(insert_base)
 
         if is_execute:
-            insert.execute()
+            insert.execute(time_log=time_log)
+            # fetch待ちがあると 「OperationalError: cannot commit transaction - SQL statements in progress」になるので、fetch_idしないときのみコミット。
+            if not is_returning_id:
+                insert.commit(time_log=time_log)
 
         return insert
+
+    def bulk_insert(self, insert_list: list[Insert], time_log: Literal["print_log"] | utils.PrintLog | None = None):
+        """
+        バルクインサートをついに実装！
+
+        Args:
+            insert_list (list[Insert]): まだ実行していないInsertオブジェクトのリスト
+        """
+        timer = utils.Timer(time_log=time_log)
+
+        self.driver.begin()
+        try:
+            for i, insert in enumerate(insert_list):
+                insert.execute()
+        except Exception as e:
+            self.driver.rollback()
+            raise RuntimeError(f"バルクindex={i}, query(placeholderじゃない部分)={insert} failed: {e}") from e
+
+        self.driver.commit()
+
+        timer.finish("バルクinsert時間")
 
     def update(
         self,
@@ -198,6 +222,7 @@ class Table:
         where: wheres.Where | None = None,
         is_execute: bool = True,
         is_returning_id: bool = False,
+        time_log: Literal["print_log"] | utils.PrintLog | None = None,
     ) -> Update:
         """
         行を更新
@@ -222,7 +247,8 @@ class Table:
         update.straight_set(update_base)
 
         if is_execute:
-            update.execute()
+            update.execute(time_log=time_log)
+            update.commit(time_log=time_log)
 
         return update
 
@@ -231,6 +257,7 @@ class Table:
         column_list: list[Column] | Column | None = None,
         where: wheres.Where | None = None,
         is_execute: bool = True,
+        time_log: Literal["print_log"] | utils.PrintLog | None = None,
     ) -> Select:
         """
         行を更新
@@ -255,6 +282,6 @@ class Table:
         select.straight_set(select_base)
 
         if is_execute:
-            select.execute()
+            select.execute(time_log=time_log)
 
         return select

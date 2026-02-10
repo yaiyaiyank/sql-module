@@ -1,9 +1,10 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 import datetime
+from typing import Literal
 from abc import abstractmethod
 
-from sql_module import Table, Column, CompositeConstraint, Query, Field, wheres, Insert, Update, Select
+from sql_module import Table, Column, CompositeConstraint, Query, Field, wheres, Insert, Update, Select, utils
 
 
 @dataclass
@@ -48,9 +49,18 @@ class TableDefinition:
         create = self.table.create(column_list, composite_constraint, exists_ok, is_execute)
         return create
 
-    def insert(self, record: list[Field] | Field, is_execute: bool = True, is_returning_id: bool = False) -> Insert:
-        insert = self.table.insert(record, is_execute, is_returning_id)
+    def insert(
+        self,
+        record: list[Field] | Field,
+        is_execute: bool = True,
+        is_returning_id: bool = False,
+        time_log: Literal["print_log"] | utils.PrintLog | None = None,
+    ) -> Insert:
+        insert = self.table.insert(record, is_execute, is_returning_id, time_log=time_log)
         return insert
+
+    def bulk_insert(self, insert_list: list[Insert], time_log: Literal["print_log"] | utils.PrintLog | None = None):
+        self.table.bulk_insert(insert_list, time_log=time_log)
 
     def update(
         self,
@@ -58,8 +68,9 @@ class TableDefinition:
         where: wheres.Where | None = None,
         is_execute: bool = True,
         is_returning_id: bool = False,
+        time_log: Literal["print_log"] | utils.PrintLog | None = None,
     ) -> Update:
-        update = self.table.update(record, where, is_execute, is_returning_id)
+        update = self.table.update(record, where, is_execute, is_returning_id, time_log=time_log)
         return update
 
     def select(
@@ -67,9 +78,10 @@ class TableDefinition:
         column_list: list[Column] | Column | None = None,
         where: wheres.Where | None = None,
         is_execute: bool = True,
+        time_log: Literal["print_log"] | utils.PrintLog | None = None,
     ) -> Select:
         # もしかしたらサブクエリやるかも
-        select = self.table.select(column_list, where, is_execute)
+        select = self.table.select(column_list, where, is_execute, time_log=time_log)
         return select
 
     def _get_create_column(self):
@@ -120,7 +132,13 @@ class AtIDTableDefinition(IDTableDefinition):
             "updated_at", type=datetime.datetime, default_value="CURRENT_TIMESTAMP"
         )
 
-    def insert(self, record: list[Field] | Field, is_execute: bool = True, is_returning_id: bool = False) -> Insert:
+    def insert(
+        self,
+        record: list[Field] | Field,
+        is_execute: bool = True,
+        is_returning_id: bool = False,
+        time_log: Literal["print_log"] | utils.PrintLog | None = None,
+    ) -> Insert:
         if isinstance(record, Field):
             record = [record]
         record = record.copy()
@@ -128,7 +146,7 @@ class AtIDTableDefinition(IDTableDefinition):
         update_field = Field(self.updated_at_column, datetime.datetime.now(datetime.timezone.utc))
         record.append(update_field)
 
-        insert = self.table.insert(record, is_execute, is_returning_id)
+        insert = self.table.insert(record, is_execute, is_returning_id, time_log=time_log)
         return insert
 
     def update(
@@ -137,6 +155,7 @@ class AtIDTableDefinition(IDTableDefinition):
         where: wheres.Where | None = None,
         is_execute: bool = True,
         is_returning_id: bool = False,
+        time_log: Literal["print_log"] | utils.PrintLog | None = None,
     ) -> Update:
         if isinstance(record, Field):
             record = [record]
@@ -145,7 +164,7 @@ class AtIDTableDefinition(IDTableDefinition):
         update_field = Field(self.updated_at_column, datetime.datetime.now(datetime.timezone.utc))
         record.append(update_field)
 
-        insert = self.table.update(record, where, is_execute, is_returning_id)
+        insert = self.table.update(record, where, is_execute, is_returning_id, time_log=time_log)
         return insert
 
     @abstractmethod
