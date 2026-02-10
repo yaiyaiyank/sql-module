@@ -1,8 +1,8 @@
-from dataclasses import dataclass, field
-from sql_module.sqlite.driver import Driver
-from typing import Self
 from pathlib import Path
+from dataclasses import dataclass, field
 import datetime
+from typing import Self, Literal
+from sql_module import utils, Driver, exceptions
 
 
 class Query:
@@ -35,11 +35,11 @@ class Query:
         return _query
 
     def straight_set(self, query: Self):
-        """他Queryオブジェクトを自Queryオブジェクトに上書き"""
+        """他Queryオブジェクトを自Queryオブジェクトに上書き(driverはマージ)"""
         _query = query.copy()
         self.string_list = _query.string_list
         self.value_list = _query.value_list
-        self._merge_driver(_query.driver)
+        self.merge_driver(_query.driver)
 
     def __add__(self, other: str | Self) -> Self:
         self = self.copy()
@@ -54,7 +54,7 @@ class Query:
             # valueのselfとotherをつなげる
             self.value_list += other.value_list
             # selfかotherにdriverがあったら採用する
-            self._merge_driver(other.driver)
+            self.merge_driver(other.driver)
 
             return self
 
@@ -91,7 +91,8 @@ class Query:
             driver_string = self.driver.database_file_path
         return f"string: {query_string}\nplaceholder_dict: {placeholder_dict}\ndb_path: {driver_string}"
 
-    def _merge_driver(self, other_driver: Self):
+    def merge_driver(self, other_driver: Self):
+        """driverをマージ。新しくQueryオブジェクトを作ってDriverを入れたい場合にも使える。"""
         # 演算時にdriverを注入する
         # selfとotherのdriverが取りうるのはNoneか同じIDのdriver。上書きok。
         if not other_driver is None:
@@ -101,11 +102,16 @@ class Query:
             self.driver = None
             return
 
-    def execute(self):
+    def execute(self, time_log: Literal["print_log"] | utils.PrintLog | None = None):
         if self.driver is None:
-            raise ValueError("driver属性が無いです。")
+            raise ValueError("実行するにはdriverが必要です。")
         query_string, placeholder_dict = self.measurement()
-        self.driver.execute(query_string, placeholder_dict)
+        self.driver.execute(query_string, placeholder_dict, time_log=time_log)
+
+    def commit(self, time_log: Literal["print_log"] | utils.PrintLog | None = None):
+        if self.driver is None:
+            raise ValueError("コミットするにはdriverが必要です。")
+        self.driver.commit(time_log=time_log)
 
     def measurement(self) -> tuple[str, dict]:
         """現時点のクエリを観測"""

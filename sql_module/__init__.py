@@ -1,4 +1,5 @@
 # いづれsqliteだけでなくPostgreSQLにも対応する予定。MySQLはGPLライセンスなので汚染回避のため採用しない
+from sql_module import exceptions
 from sql_module import utils
 
 # driver

@@ -2,16 +2,18 @@
 from pathlib import Path
 from dataclasses import dataclass
 import datetime
+from typing import Literal
 
 from sql_module import utils, Driver, Field, Query, query_join_comma
 from sql_module.exceptions import FetchNotFoundError
 
 
 class Insert(Query):
-    def fetch_id(self) -> int:
+    def fetch_id(self, time_log: Literal["print_log"] | utils.PrintLog | None = None) -> int:
         """insert後にidをfetch"""
         try:
-            id_dict = self.driver.fetchone()
+            id_dict = self.driver.fetchone(time_log=time_log)
+            self.driver.commit(time_log=time_log)
             return id_dict["id"]
         except FetchNotFoundError:
             if not "RETURNING id" in self.__str__():

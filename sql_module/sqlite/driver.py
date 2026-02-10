@@ -2,9 +2,9 @@ from pathlib import Path
 from dataclasses import dataclass, field
 import sqlite3
 import time
-from typing import Self
+from typing import Self, Literal
 
-from sql_module.exceptions import FetchNotFoundError
+from sql_module import utils, exceptions
 
 
 @dataclass
@@ -76,74 +76,123 @@ class Driver:
     def begin(self):
         self.conn.execute("BEGIN")
 
-    def execute(self, query: str, parameters: dict[str] | None = None, time_log: bool = False):
+    def execute(
+        self,
+        query: str,
+        parameters: dict[str] | None = None,
+        time_log: Literal["print_log"] | utils.PrintLog | None = None,
+    ):
         """
         cursorを実行
 
         Args:
             query (str): クエリ
             parameters (dict[str] | None): プレースホルダのパラメータ
+            time_log (ログ系オブジェクト | None): 時間計測のログ。
+            - Noneなら出さない
+            - 'print_log'ならprintだけする
+            - ログ系オブジェクト(debugメソッドなどを持つ)なら、そのログを使う。
         """
+        timer = utils.Timer(time_log=time_log)
+
         self.open_full()
-        time_start = time.time()
         if parameters is None or parameters.__len__() == 0:
             self.cursor.execute(query)
         # Noneや__len__() > 0
         else:
             self.cursor.execute(query, parameters)
-        time_end = time.time()
-        if time_log:
-            print(f"実行時間: {time_end - time_start:10f}s")
+
+        timer.finish("実行時間")
 
     def rollback(self):
         self.conn.rollback()
 
-    def commit(self, time_log: bool = False):
-        time_start = time.time()
+    def commit(self, time_log: Literal["print_log"] | utils.PrintLog | None = None):
+        """
+        コミットする。
+        Args:
+            time_log (ログ系オブジェクト | None): 時間計測のログ。
+            - Noneなら出さない
+            - 'print_log'ならprintだけする
+            - ログ系オブジェクト(debugメソッドなどを持つ)なら、そのログを使う。
+        """
+        timer = utils.Timer(time_log=time_log)
+
         try:
             self.conn.commit()
         except sqlite3.OperationalError:
+            self.rollback()
             # 再起動する
             self.close_full()
             self.open_full()
             raise
-        time_end = time.time()
-        if time_log:
-            print(f"コミット時間: {time_end - time_start:10f}s")
 
-    def fetchall(self, dict_output: bool = False, time_log: bool = False) -> list[dict[str]] | list[sqlite3.Row]:
-        """全行取り出す"""
-        time_start = time.time()
+        timer.finish("コミット時間")
+
+    def fetchall(
+        self, dict_output: bool = False, time_log: Literal["print_log"] | utils.PrintLog | None = None
+    ) -> list[dict[str]] | list[sqlite3.Row]:
+        """
+        全行取り出す
+        Args:
+            dict_output (bool): 時間計測のログ。
+            time_log (ログ系オブジェクト | None): 時間計測のログ。
+            - Noneなら出さない
+            - 'print_log'ならprintだけする
+            - ログ系オブジェクト(debugメソッドなどを持つ)なら、そのログを使う。
+        """
+        timer = utils.Timer(time_log=time_log)
+
         fetchall_list = self.cursor.fetchall()
         if dict_output:
             fetchall_list = [dict(fetch) for fetch in fetchall_list]
-        time_end = time.time()
-        if time_log:
-            print(f"fetch時間: {time_end - time_start:10f}s")
+
+        timer.finish("fetchall時間")
+
         return fetchall_list
 
-    def fetchone(self, dict_output: bool = False, time_log: bool = False) -> dict[str] | sqlite3.Row:
-        """1行取り出す"""
-        time_start = time.time()
+    def fetchone(
+        self, dict_output: bool = False, time_log: Literal["print_log"] | utils.PrintLog | None = None
+    ) -> dict[str] | sqlite3.Row:
+        """
+        1行取り出す
+        Args:
+            dict_output (bool): 時間計測のログ。
+            time_log (ログ系オブジェクト | None): 時間計測のログ。
+            - Noneなら出さない
+            - 'print_log'ならprintだけする
+            - ログ系オブジェクト(debugメソッドなどを持つ)なら、そのログを使う。
+        """
+        timer = utils.Timer(time_log=time_log)
+
         fetchone = self.cursor.fetchone()
         if fetchone is None:
-            raise FetchNotFoundError
+            raise exceptions.FetchNotFoundError
         if dict_output:
             fetchone = dict(fetchone)
-        time_end = time.time()
-        if time_log:
-            print(f"fetch時間: {time_end - time_start:10f}s")
+
+        timer.finish("fetchone時間")
+
         return fetchone
 
     def fetchmany(
-        self, limit: int, dict_output: bool = False, time_log: bool = False
+        self, limit: int, dict_output: bool = False, time_log: Literal["print_log"] | utils.PrintLog | None = None
     ) -> list[dict[str]] | list[sqlite3.Row]:
-        """何行か取り出す"""
-        time_start = time.time()
+        """
+        何行か取り出す
+        Args:
+            dict_output (bool): 時間計測のログ。
+            time_log (ログ系オブジェクト | None): 時間計測のログ。
+            - Noneなら出さない
+            - 'print_log'ならprintだけする
+            - ログ系オブジェクト(debugメソッドなどを持つ)なら、そのログを使う。
+        """
+        timer = utils.Timer(time_log=time_log)
+
         fetchmany_list = self.cursor.fetchmany(limit)
         if dict_output:
             fetchmany_list = [dict(fetch) for fetch in fetchmany_list]
-        time_end = time.time()
-        if time_log:
-            print(f"fetch時間: {time_end - time_start:10f}s")
+
+        timer.finish("fetchmany時間")
+
         return fetchmany_list
