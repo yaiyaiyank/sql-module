@@ -4,7 +4,21 @@ import datetime
 from typing import Literal
 from abc import abstractmethod
 
-from sql_module import Table, Column, CompositeConstraint, Query, Field, wheres, Insert, Update, Select, utils
+from sql_module import (
+    Table,
+    Column,
+    CompositeConstraint,
+    Query,
+    Field,
+    conds,
+    Join,
+    OrderBy,
+    Insert,
+    Update,
+    Select,
+    utils,
+    expressions,
+)
 
 
 @dataclass
@@ -39,6 +53,15 @@ class TableDefinition:
         """テーブルの生の声"""
         return self.table.info(show)
 
+    def exists(self) -> bool:
+        return self.table.exists()
+
+    def make_index(self, column_list: list[Column] | Column, exists_ok: bool = True):
+        self.table.make_index(column_list, exists_ok)
+
+    def delete_index(self, column_list: list[Column] | Column, not_exists_ok: bool = True):
+        self.table.delete_index(column_list, not_exists_ok)
+
     def create(
         self,
         composite_constraint: list[CompositeConstraint] | CompositeConstraint | None = None,
@@ -65,23 +88,32 @@ class TableDefinition:
     def update(
         self,
         record: list[Field] | Field,
-        where: wheres.Where | None = None,
+        where: conds.Cond | None = None,
+        non_where_safe: bool = True,
         is_execute: bool = True,
         is_returning_id: bool = False,
         time_log: Literal["print_log"] | utils.PrintLog | None = None,
     ) -> Update:
-        update = self.table.update(record, where, is_execute, is_returning_id, time_log=time_log)
+        update = self.table.update(record, where, non_where_safe, is_execute, is_returning_id, time_log=time_log)
         return update
 
     def select(
         self,
-        column_list: list[Column] | Column | None = None,
-        where: wheres.Where | None = None,
+        expression: list[expressions.Expression | Literal[1]] | expressions.Expression | Literal[1] | None = None,
+        where: conds.Cond | None = None,
+        join: list[Join] | Join | None = None,
+        group_by: list[Column] | Column | None = None,
+        order_by: list[OrderBy] | OrderBy | None = None,
+        having: None = None,
+        limit: int | None = None,
+        is_from: bool = True,
         is_execute: bool = True,
         time_log: Literal["print_log"] | utils.PrintLog | None = None,
     ) -> Select:
         # もしかしたらサブクエリやるかも
-        select = self.table.select(column_list, where, is_execute, time_log=time_log)
+        select = self.table.select(
+            expression, where, join, group_by, order_by, having, limit, is_from, is_execute, time_log=time_log
+        )
         return select
 
     def _get_create_column(self):
@@ -90,7 +122,6 @@ class TableDefinition:
         return column_list
 
 
-@dataclass
 class IDTableDefinition(TableDefinition):
     """
     self.id_columnやself.name_columnみたいに定義したカラムにアクセスできるクラス
@@ -110,7 +141,6 @@ class IDTableDefinition(TableDefinition):
         pass
 
 
-@dataclass
 class AtIDTableDefinition(IDTableDefinition):
     """
     self.id_columnやself.name_columnみたいに定義したカラムにアクセスできるクラス
@@ -152,7 +182,8 @@ class AtIDTableDefinition(IDTableDefinition):
     def update(
         self,
         record: list[Field] | Field,
-        where: wheres.Where | None = None,
+        where: conds.Cond | None = None,
+        non_where_safe: bool = True,
         is_execute: bool = True,
         is_returning_id: bool = False,
         time_log: Literal["print_log"] | utils.PrintLog | None = None,
@@ -164,9 +195,22 @@ class AtIDTableDefinition(IDTableDefinition):
         update_field = Field(self.updated_at_column, datetime.datetime.now(datetime.timezone.utc))
         record.append(update_field)
 
-        insert = self.table.update(record, where, is_execute, is_returning_id, time_log=time_log)
+        insert = self.table.update(record, where, non_where_safe, is_execute, is_returning_id, time_log=time_log)
         return insert
 
     @abstractmethod
     def set_colmun_difinition(self):
         pass
+
+
+class SQLiteMaster(TableDefinition):
+    """
+    目指せsqliteマスター!!
+    """
+
+    def set_colmun_difinition(self):
+        self.type_column = self.get_column("type", str, not_null=True)
+        self.name_column = self.get_column("name", str, not_null=True)
+        self.tbl_name_column = self.get_column("name", str, not_null=True)
+        self.rootpage_column = self.get_column("rootpage", int, unique=True, not_null=True)
+        self.sql_column = self.get_column("sql", str)

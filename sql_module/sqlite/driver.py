@@ -12,7 +12,7 @@ class Status:
     conn: bool = False
     cursor: bool = False
 
-    def make_repr_text(self):
+    def info_status_text(self):
         if self.conn:
             conn_oc = "conn is open"
         else:
@@ -28,12 +28,17 @@ class Status:
 
 @dataclass
 class Driver:
-    database_file_path: Path | str
+    database_file_path: Path | str | None
     status: Status = field(default_factory=Status)
 
+    def __post_init__(self):
+        if self.database_file_path is None:
+            self.database_file_path = ":memory:"
+
     def __repr__(self) -> str:
-        text = self.status.make_repr_text()
-        return text
+        status_text = self.status.info_status_text()
+        db_path_text = f"db_path: {self.database_file_path}"
+        return f"{status_text} {db_path_text}"
 
     def open_full(self):
         """
@@ -151,6 +156,28 @@ class Driver:
 
         return fetchall_list
 
+    def fetchmany(
+        self, limit: int, dict_output: bool = False, time_log: Literal["print_log"] | utils.PrintLog | None = None
+    ) -> list[dict[str]] | list[sqlite3.Row]:
+        """
+        何行か取り出す
+        Args:
+            dict_output (bool): 時間計測のログ。
+            time_log (ログ系オブジェクト | None): 時間計測のログ。
+            - Noneなら出さない
+            - 'print_log'ならprintだけする
+            - ログ系オブジェクト(debugメソッドなどを持つ)なら、そのログを使う。
+        """
+        timer = utils.Timer(time_log=time_log)
+
+        fetchmany_list = self.cursor.fetchmany(limit)
+        if dict_output:
+            fetchmany_list = [dict(fetch) for fetch in fetchmany_list]
+
+        timer.finish("fetchmany時間")
+
+        return fetchmany_list
+
     def fetchone(
         self, dict_output: bool = False, time_log: Literal["print_log"] | utils.PrintLog | None = None
     ) -> dict[str] | sqlite3.Row:
@@ -175,11 +202,11 @@ class Driver:
 
         return fetchone
 
-    def fetchmany(
+    def fetchgrid(
         self, limit: int, dict_output: bool = False, time_log: Literal["print_log"] | utils.PrintLog | None = None
-    ) -> list[dict[str]] | list[sqlite3.Row]:
+    ) -> list[list[dict[str]]] | list[list[sqlite3.Row]]:
         """
-        何行か取り出す
+        全行をlimitごとに取り出してリストに分ける
         Args:
             dict_output (bool): 時間計測のログ。
             time_log (ログ系オブジェクト | None): 時間計測のログ。
@@ -187,12 +214,19 @@ class Driver:
             - 'print_log'ならprintだけする
             - ログ系オブジェクト(debugメソッドなどを持つ)なら、そのログを使う。
         """
+        all_list = []
         timer = utils.Timer(time_log=time_log)
 
-        fetchmany_list = self.cursor.fetchmany(limit)
-        if dict_output:
-            fetchmany_list = [dict(fetch) for fetch in fetchmany_list]
+        while True:
+            fetchmany_list = self.cursor.fetchmany(limit)
+            # fetchmany_listがなくなるまで
+            if fetchmany_list.__len__() == 0:
+                break
+
+            if dict_output:
+                fetchmany_list = [dict(fetch) for fetch in fetchmany_list]
+            all_list.append(fetchmany_list)
 
         timer.finish("fetchmany時間")
 
-        return fetchmany_list
+        return all_list

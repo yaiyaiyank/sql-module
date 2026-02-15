@@ -20,6 +20,16 @@ class Query:
         # 最初の値リストを設定(空のリスト)
         self.value_list = []
 
+    def view_plan(self, is_detail: bool = False):
+        if is_detail:
+            base_query = Query("EXPLAIN ")
+        else:
+            base_query = Query("EXPLAIN QUERY PLAN ")
+
+        query = base_query + self
+        query.execute()
+        return query.driver.fetchall(dict_output=True)
+
     def raise_for_length(self):
         if not self.value_list.__len__() + 1 == self.string_list.__len__():
             raise ValueError(
@@ -81,15 +91,14 @@ class Query:
 
     def __str__(self) -> str:
         query_string, placeholder_dict = self.measurement()
-        return query_string
-
-    def __repr__(self):
-        query_string, placeholder_dict = self.measurement()
         if self.driver is None:
             driver_string = None
         else:
             driver_string = self.driver.database_file_path
         return f"string: {query_string}\nplaceholder_dict: {placeholder_dict}\ndb_path: {driver_string}"
+
+    def __repr__(self):
+        return self.__str__()
 
     def merge_driver(self, other_driver: Self):
         """driverをマージ。新しくQueryオブジェクトを作ってDriverを入れたい場合にも使える。"""
@@ -141,6 +150,22 @@ def query_join_comma(query_list: list[Query], no_empty: bool = False) -> Query:
         # 初回のみカンマいらぬ
         if i > 0:
             base_query += ", "
+        i += 1
+        base_query += query
+
+    return base_query
+
+
+def query_join_space(query_list: list[Query], no_empty: bool = False) -> Query:
+    base_query = Query()
+    # :p0, :p1
+    i = 0
+    for query in query_list:
+        if no_empty and query.string_list.__len__() == 1 and query.string_list[0] == "":
+            continue
+        # 初回のみスペースいらぬ
+        if i > 0:
+            base_query += " "
         i += 1
         base_query += query
 

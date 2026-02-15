@@ -25,7 +25,7 @@ def get_table_definition(db_path: Path | str | None = None):
         def set_colmun_difinition(self):
             # unique
             # 命名規則: rest_id_columnと書く時、それはrest.idにreferencesしてるとき。今回はrest_idそのものなのでアンダーバーをつける。
-            # ChatGPTいわく、rest_idは巨大整数問題を避けるため 文字列で返す。intでない。
+            # ChatGPTいわく、Xのrest_idは巨大整数問題を避けるため 文字列で返す。intでない。
             self._rest_id_column = self.get_column("_rest_id", str, not_null=True, unique=True)
             # 現在の名前
             self.current_name_column = self.get_column("current_name", str, not_null=True)
@@ -84,7 +84,7 @@ def get_table_definition(db_path: Path | str | None = None):
             # 投稿日
             self.date_column = self.get_column("date", datetime.datetime, not_null=True)
             # ダウンロード済判定に使う
-            self.already_download_column = self.get_column("already_download", bool)
+            self.already_download_column = self.get_column("already_download", bool, default_value=False)
             # いいね(ふぁぼ)数
             self.favorite_count_column = self.get_column("favorite_count", int, not_null=True)
             # 引用リポスト
@@ -187,3 +187,16 @@ def regist_already_download(post: sql_module.AtIDTableDefinition, post_id_list: 
             sql_module.Field(post.already_download_column, True),
         ]
         post.insert(post_record)
+
+
+# ページング
+def get_seek_page(post, last_date: str, last_id: int):
+
+    where = sql_module.conds.Less(post.date_column, last_date) | sql_module.conds.Eq(
+        post.date_column, last_date
+    ) & sql_module.conds.Less(post.id_column, last_id)
+    order_by = [sql_module.OrderBy(post.date_column, False), sql_module.OrderBy(post.id_column, False)]
+
+    select = post.select(None, where, order_by=order_by, limit=8)
+    fetchall = select.fetchall(dict_output=True)
+    return fetchall, fetchall[-1]["date"], fetchall[-1]["id"]

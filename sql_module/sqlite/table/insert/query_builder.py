@@ -24,7 +24,6 @@ class Insert(Query):
             raise
 
 
-@dataclass
 class InsertQueryBuilder:
     def __init__(self, driver: Driver):
         self.driver = driver
@@ -42,7 +41,7 @@ class InsertQueryBuilder:
 
     def _get_keys(self, record: list[Field]) -> str:
         # record -> ['name', 'age']
-        keys = [field_.column.name.now for field_ in record]
+        keys = [field_.column.name.name for field_ in record]
         # ['name', 'age'] -> 'name, age'
         keys = utils.join_comma(keys)
         return keys
@@ -66,11 +65,11 @@ class InsertQueryBuilder:
         """
         if isinstance(record, Field):
             record = [record]
-        # [Field(column.name.now = 'site_id', upsert=True), Field(column.name.now = 'content_id', upsert=True), Field(column.name.now = 'title')]
+        # [Field(column.name.name = 'site_id', upsert=True), Field(column.name.name = 'content_id', upsert=True), Field(column.name.name = 'title')]
         # ->
         # on_conflict_keys = ['site_id', 'content_id'], non_conflict_keys = ['title']
-        on_conflict_keys = [field_.column.name.now for field_ in record if field_.upsert]
-        non_conflict_keys = [field_.column.name.now for field_ in record if not field_.upsert]
+        on_conflict_keys = [field_.column.name.name for field_ in record if field_.upsert]
+        non_conflict_keys = [field_.column.name.name for field_ in record if not field_.upsert]
         # k == 0
         if on_conflict_keys.__len__() == 0:
             return Query()

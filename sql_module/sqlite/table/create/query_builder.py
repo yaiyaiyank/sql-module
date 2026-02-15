@@ -22,8 +22,8 @@ class CreateQueryBuilder:
     def get_column_define_constraint_query(self, column_list: list[Column]) -> Query:
         """
         列定義・列制約のクエリ作成
-        [Column(name.now = 'create_dt', constraint.python_type = datetime.date, constraint.not_null = True),
-        Column(name.now = 'post_id', constraint.python_type = int, constraint.unique = True, constraint.not_null = True)]
+        [Column(name.name = 'create_dt', constraint.python_type = datetime.date, constraint.not_null = True),
+        Column(name.name = 'post_id', constraint.python_type = int, constraint.unique = True, constraint.not_null = True)]
         ->
         'create_dt TIMESTAMP NOT NULL, '
 
@@ -43,14 +43,14 @@ class CreateQueryBuilder:
         """
         1つの列定義・列制約のクエリ作成
 
-        Column(name.now = 'text', constraint.python_type = str, constraint.not_null = True)
+        Column(name.name = 'text', constraint.python_type = str, constraint.not_null = True)
         ->
         'text TEXT NOT NULL'
         """
         constraint_query = self._get_constraint_query(column.constraint)
 
         one_column_define_constraint_query = utils.join_space(
-            [column.name.now, column.constraint.sql_type, constraint_query], no_empty=True
+            [column.name.name, column.constraint.sql_type, constraint_query], no_empty=True
         )
         return one_column_define_constraint_query
 
@@ -75,7 +75,7 @@ class CreateQueryBuilder:
         # references
         if not constraint.references is None:
             constraint_str_list.append(
-                f"REFERENCES {constraint.references.name.table_name.now} ({constraint.references.name.now}) ON DELETE CASCADE"
+                f"REFERENCES {constraint.references.name.table_name} ({constraint.references.name.name}) ON DELETE CASCADE"
             )
         # default
         if not constraint.default_value is None:
@@ -88,8 +88,8 @@ class CreateQueryBuilder:
         self, composite_constraint_list: list[CompositeConstraint] | CompositeConstraint | None
     ) -> Query:
         """
-        [UNIQUECompositeConstraint([Column(name.now='site_id'), Column(name.now='content_id')]),
-        UNIQUECompositeConstraint([Column(name.now='post_id'), Column(name.now='name')])]
+        [UNIQUECompositeConstraint([Column(name.name='site_id'), Column(name.name='content_id')]),
+        UNIQUECompositeConstraint([Column(name.name='post_id'), Column(name.name='name')])]
         ->
         'UNIQUE (site_id, content_id), UNIQUE (post_id, name)'
         """
