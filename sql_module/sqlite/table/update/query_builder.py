@@ -1,7 +1,7 @@
 # 標準ライブラリ
 from dataclasses import dataclass
 
-from sql_module import utils, Driver, Field, wheres, Query, query_join_comma
+from sql_module import utils, Driver, Field, conds, Query, query_join_comma
 from sql_module.exceptions import FetchNotFoundError
 
 
@@ -17,7 +17,6 @@ class Update(Query):
             raise
 
 
-@dataclass
 class UpdateQueryBuilder:
     def __init__(self, driver: Driver):
         self.driver = driver
@@ -45,16 +44,16 @@ class UpdateQueryBuilder:
     def _get_field_eq_query(self, field: Field) -> Query:
         """name = :p1みたいな部分"""
         query = Query()
-        query += f"{field.column.name.now} = "
+        query += f"{field.column.name.name} = "
         query *= field.sql_value
         return query
 
-    def get_where_query(self, where: wheres.Where | None = None) -> Query:
+    def get_where_query(self, where: conds.Cond | None = None) -> Query:
         """
         WHERE句
         """
         if where is None:
-            where = wheres.TRUE()
+            return Query()
 
         where_query = "WHERE " + where
 

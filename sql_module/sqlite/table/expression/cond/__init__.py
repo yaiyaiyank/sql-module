@@ -1,5 +1,7 @@
-from sql_module.sqlite.table.where.where import (
-    Where,
+"""0 / 1を表す条件式"""
+
+from sql_module.sqlite.table.expression.cond.cond import (
+    Cond,
     And,
     Or,
     Not,
@@ -15,4 +17,5 @@ from sql_module.sqlite.table.where.where import (
     Range,
     TRUE,
     FALSE,
+    Exists,
 )

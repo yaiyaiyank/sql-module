@@ -2,12 +2,8 @@ from pathlib import Path
 from dataclasses import dataclass
 
 from sql_module.sqlite.driver import Driver
-from sql_module.sqlite.table.name import TableName
 
-from sql_module import Table, TableDefinition, IDTableDefinition, AtIDTableDefinition, Query
-
-# utils
-from sql_module import utils
+from sql_module import utils, Table, TableDefinition, IDTableDefinition, AtIDTableDefinition, SQLiteMaster, conds
 
 
 @dataclass
@@ -16,14 +12,11 @@ class SQLiteDataBase:
     is_wal_mode: bool = True
 
     def __post_init__(self):
-        if self.db_path is None:
-            self.db_path = ":memory:"
         self.driver = Driver(self.db_path)
         self._set_journal_mode()
 
     def get_table(self, name: str) -> Table:
-        table_name = TableName(name)
-        return Table(driver=self.driver, name=table_name)
+        return Table(driver=self.driver, name=name)
 
     def get_table_definition(self, table_definition_class: type, name: str | None = None) -> TableDefinition:
         """
@@ -37,9 +30,17 @@ class SQLiteDataBase:
         table_definition = table_definition_class(table)
         return table_definition
 
+    def get_sqlite_master_table_definition(self) -> SQLiteMaster:
+        sqlite_master = self.get_table_definition(
+            SQLiteMaster, "sqlite_master"
+        )  # デフォルトで'sq_lite_master'となってしまうので指定
+        return sqlite_master
+
     def get_exists_table_list(self) -> list[Table]:
-        self.driver.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        tables = self.driver.fetchall()
+        # SELECT name FROM sqlite_master WHERE type='table'
+        sqlite_master = self.get_sqlite_master_table_definition()
+        select = sqlite_master.select(sqlite_master.name_column, conds.Eq(sqlite_master.type_column, "table"))
+        tables = select.fetchall()
         return [self.get_table(table[0]) for table in tables]
 
     def _set_journal_mode(self):

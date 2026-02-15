@@ -5,10 +5,6 @@ import datetime
 
 # 主要要素
 from sql_module.sqlite.driver import Driver
-from sql_module.sqlite.table.name import TableName
-from sql_module.sqlite.table.column.name import ColumnName
-from sql_module.sqlite.table.column.column import Column
-from sql_module.sqlite.table.column.column_constraint import ColumnConstraint
 
 
 @dataclass
@@ -85,7 +81,7 @@ class MultiIndex:
 @dataclass
 class Info:
     driver: Driver
-    table_name: TableName
+    table_name: str
     column_info_list: list[ColumnInfo] = field(default_factory=list)
     multi_index_list: list[MultiIndex] = field(default_factory=list)
 
@@ -105,15 +101,15 @@ class Info:
         return text
 
     def get_raw_column_list(self) -> list[dict[str]]:
-        self.driver.execute(f"PRAGMA table_info({self.table_name.now});")
+        self.driver.execute(f"PRAGMA table_info({self.table_name});")
         return self.driver.fetchall(True)
 
     def get_raw_foreign_key_list(self) -> list[dict[str]]:
-        self.driver.execute(f"PRAGMA foreign_key_list({self.table_name.now});")
+        self.driver.execute(f"PRAGMA foreign_key_list({self.table_name});")
         return self.driver.fetchall(True)
 
     def get_raw_index_list(self) -> list[dict[str]]:
-        self.driver.execute(f"PRAGMA index_list({self.table_name.now});")
+        self.driver.execute(f"PRAGMA index_list({self.table_name});")
         return self.driver.fetchall(True)
 
     def get_index(self, index_name: str) -> list[dict[str]]:

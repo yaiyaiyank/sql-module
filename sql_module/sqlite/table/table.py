@@ -5,7 +5,6 @@ import datetime
 from typing import Self, Literal
 
 # 主要要素
-from sql_module.sqlite.table.name import TableName
 from sql_module.sqlite.table.column.name import ColumnName
 from sql_module.sqlite.table.column.column_constraint import ColumnConstraint
 
@@ -26,24 +25,31 @@ from sql_module.sqlite.table.update.query_builder import UpdateQueryBuilder, Upd
 from sql_module.sqlite.table.select.query_builder import SelectQueryBuilder, Select
 
 # utils
-from sql_module import exceptions, utils, Driver, Query, query_join_comma, Column, Field, wheres
+from sql_module import (
+    exceptions,
+    utils,
+    Driver,
+    Query,
+    query_join_comma,
+    Column,
+    Field,
+    conds,
+    Join,
+    OrderBy,
+    expressions,
+)
 
 # テーブルのメイン操作系
-
-
-# TODO 複合カラムの設計変えるかも
-# columnがTableの情報を使わずに行けるかも
 
 
 @dataclass
 class Table:
     """
-        ↓ ここ
-    Table -> Column -> Field
+    テーブルを司るクラス。TableDefinitonフレームワークに役割を奪われつつあり、pathlibに追われたosライブラリみたいな感じ。
     """
 
     driver: Driver
-    name: TableName
+    name: str
 
     def __repr__(self) -> str:
         text = f"テーブル名: {self.name}"
@@ -61,7 +67,7 @@ class Table:
     ) -> Column:
         """カラムを取得"""
         # カラム名
-        column_name = ColumnName(self.name, name)
+        column_name = ColumnName(name, self.name)
         # 列制約
         column_constraint = ColumnConstraint(
             python_type=type,
@@ -76,11 +82,22 @@ class Table:
         return column
 
     def exists(self) -> bool:
-        self.driver.execute(f"SELECT 1 FROM sqlite_master WHERE type='table' AND name='{self.name.now}' LIMIT 1")
-        try:
-            self.driver.fetchone()
+        """
+        存在しているかどうか
+        # placeholder = {"p0": "table", "p1": "post"}
+        # select.driver.execute("SELECT EXISTS (SELECT 1 FROM sqlite_master WHERE type = :p0 AND name = :p1)", placeholder)
+        """
+        table = Table(driver=self.driver, name="sqlite_master")
+        type_column = table.get_column("type", str)
+        name_column = table.get_column("name", str)
+        sqlite_master_select = table.select(
+            1, conds.Eq(type_column, "table") & conds.Eq(name_column, self.name), is_execute=False
+        )
+        select = self.select(conds.Exists(sqlite_master_select), is_from=False)
+        result = select.fetchone()[0]
+        if result:
             return True
-        except exceptions.FetchNotFoundError:
+        else:
             return False
 
     def info(self, show: bool = True) -> Info:
@@ -93,26 +110,43 @@ class Table:
         - raw_index_list: PRAGMA index_list(テーブル名);をfetchしたもの
         """
         if not self.exists():
-            return f"テーブル: {self.name.now} が作成されていません。"
+            return f"テーブル: {self.name} が作成されていません。"
         info = Info(self.driver, self.name)
         info.set_info()
         if show:
             print(info)
         return info
 
-    def make_index(self, column_list: list[Column] | Column):
+    def make_index(self, column_list: list[Column] | Column, exists_ok: bool = True):
         """インデックス生成(複合)"""
         if isinstance(column_list, Column):
-            column_list.make_index()
+            column_list.make_index(exists_ok)
             return
         if isinstance(column_list, list):
-            columns_query = utils.join_comma([column.name.now for column in column_list])
-            columns_name = utils.join_under([column.name.now for column in column_list])
-            self.driver.execute(
-                f"CREATE INDEX IF NOT EXISTS idx_{self.name.now}_{columns_name} ON {self.name.now}({columns_query});"
-            )
+            columns_query = utils.join_comma([column.name.name for column in column_list])
+            columns_name = utils.join_under(sorted([column.name.name for column in column_list]))
+            if exists_ok:
+                self.driver.execute(
+                    f"CREATE INDEX IF NOT EXISTS idx_{self.name}_{columns_name} ON {self.name}({columns_query})"
+                )
+            else:
+                self.driver.execute(f"CREATE INDEX idx_{self.name}_{columns_name} ON {self.name}({columns_query})")
             return
         raise TypeError("index作成はカラムのみです。")
+
+    def delete_index(self, column_list: list[Column] | Column, not_exists_ok: bool = True):
+        """インデックス削除(複合)"""
+        if isinstance(column_list, Column):
+            column_list.delete_index(not_exists_ok)
+            return
+        if isinstance(column_list, list):
+            columns_name = utils.join_under(sorted([column.name.name for column in column_list]))
+            if not_exists_ok:
+                self.driver.execute(f"DROP INDEX IF EXISTS idx_{self.name}_{columns_name}")
+            else:
+                self.driver.execute(f"DROP INDEX idx_{self.name}_{columns_name}")
+            return
+        raise TypeError("index削除はカラムのみです。")
 
     def create(
         self,
@@ -143,7 +177,7 @@ class Table:
         # 制約クエリ(列+表)
         constraint_query = query_join_comma([column_define_constraint_query, composite_constraint_query], no_empty=True)
 
-        create = head_query + f" {self.name.now} (" + constraint_query + ")"
+        create = head_query + f" {self.name} (" + constraint_query + ")"
 
         if is_execute:
             create.execute()
@@ -179,10 +213,7 @@ class Table:
         # RETURNING id
         returning_id_query = query_builder.get_returning_id_query(is_returning_id)
 
-        # query = f"{head_query} {self.name.now} {value_query} {on_conflict_query}"
-        insert_base = (
-            head_query + f" {self.name.now} " + value_query + " " + on_conflict_query + " " + returning_id_query
-        )
+        insert_base = head_query + f" {self.name} " + value_query + " " + on_conflict_query + " " + returning_id_query
 
         insert = Insert()
         insert.straight_set(insert_base)
@@ -219,7 +250,8 @@ class Table:
     def update(
         self,
         record: list[Field] | Field,
-        where: wheres.Where | None = None,
+        where: conds.Cond | None = None,
+        non_where_safe: bool = True,
         is_execute: bool = True,
         is_returning_id: bool = False,
         time_log: Literal["print_log"] | utils.PrintLog | None = None,
@@ -231,6 +263,10 @@ class Table:
         'UPDATE users SET name = :p0, age = :p1 WHERE id = :p2'
         {'p0': 'Alice', 'p1': 30, 'p2': 1}
         """
+        if non_where_safe and where is None:
+            raise exceptions.DefenseAccidentException(
+                "where無しでupdateする場合、事故防止のためにnon_where_safe引数をFalseにしてください。"
+            )
         query_builder = UpdateQueryBuilder(self.driver)
         # 最初のクエリ
         head_query = query_builder.get_head_query()
@@ -241,7 +277,7 @@ class Table:
         # RETURNING id
         returning_id_query = query_builder.get_returning_id_query(is_returning_id)
 
-        update_base = head_query + f" {self.name.now} " + set_query + " " + where_query + " " + returning_id_query
+        update_base = head_query + f" {self.name} " + set_query + " " + where_query + " " + returning_id_query
 
         update = Update()
         update.straight_set(update_base)
@@ -254,8 +290,14 @@ class Table:
 
     def select(
         self,
-        column_list: list[Column] | Column | None = None,
-        where: wheres.Where | None = None,
+        expression: list[expressions.Expression | Literal[1]] | expressions.Expression | Literal[1] | None = None,
+        where: conds.Cond | None = None,
+        join: list[Join] | Join | None = None,
+        group_by: list[Column] | Column | None = None,
+        order_by: list[OrderBy] | OrderBy | None = None,
+        having: None = None,
+        limit: int | None = None,
+        is_from: bool = True,
         is_execute: bool = True,
         time_log: Literal["print_log"] | utils.PrintLog | None = None,
     ) -> Select:
@@ -269,16 +311,47 @@ class Table:
         query_builder = SelectQueryBuilder(self.driver)
         # 最初のクエリ
         head_query = query_builder.get_head_query()
-        # column_list部分のクエリ
-        select_column_query = query_builder.get_select_column_query(column_list)
+        # expression部分のクエリ
+        expression_query = query_builder.get_expression_query(expression)
         # from部分のクエリ
-        from_query = query_builder.get_from_query(self.name)
+        from_query = query_builder.get_from_query(is_from, self.name)
+        # join部分のクエリ
+        join_query = query_builder.get_join_query(join)
         # where部分のクエリ
         where_query = query_builder.get_where_query(where)
+        # group_by部分のクエリ
+        group_by_query = query_builder.get_group_by_query(group_by)
+        # having部分のクエリ
+        having_query = query_builder.get_having_query(having)
+        # order_by部分のクエリ
+        order_by_query = query_builder.get_order_by_query(order_by)
+        # limit部分のクエリ
+        limit_query = query_builder.get_limit_query(limit)
 
-        select_base = head_query + " " + select_column_query + " " + from_query + " " + where_query
+        select_base = (
+            head_query
+            + " "
+            + expression_query
+            + " "
+            + from_query
+            + " "
+            + join_query
+            + " "
+            + where_query
+            + " "
+            + group_by_query
+            + " "
+            + having_query
+            + " "
+            + order_by_query
+            + " "
+            + limit_query
+        )
 
         select = Select()
+
+        select.set_select_type(query_builder.select_type)
+
         select.straight_set(select_base)
 
         if is_execute:

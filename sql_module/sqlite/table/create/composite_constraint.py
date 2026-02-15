@@ -26,7 +26,7 @@ class CompositeConstraint:
         ->
         ['site_id', 'content_id']
         """
-        column_name_list = [column.name.now for column in self.column_list]
+        column_name_list = [column.name.name for column in self.column_list]
         return column_name_list
 
 
