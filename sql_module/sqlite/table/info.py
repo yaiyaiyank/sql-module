@@ -53,12 +53,10 @@ class IndexCounter:
             return None
         # 単体インデックスが2つ以上入っていたら
         if self.unique_index + self.not_unique_index >= 2:
-            message_list.append("単体インデックスが2つ以上含まれています。なので1つのみに絞ってみましょう。")
+            message_list.append("単体インデックスが2つ以上含まれています。")
         # 2つ以上のうち、複合インデックスが1つ以上入っていたら
         elif self.multi_unique_first_index + self.multi_not_unique_first_index >= 1:
-            message_list.append(
-                "単体インデックスや複合の最初のカラムを含めたインデックスが2つ以上含まれています。複合インデックスの最初のカラムは実質単体インデックスと同じですのでなるべく1つのみに絞ってみましょう。"
-            )
+            message_list.append("単体インデックスや複合の最初のカラムを含めたインデックスが2つ以上含まれています。")
         return message_list
 
     @property

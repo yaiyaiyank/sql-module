@@ -38,5 +38,11 @@ from sql_module.sqlite.table.create.composite_constraint import (
 
 # base2
 from sql_module.sqlite.table.table import Table
-from sql_module.sqlite.definition import TableDefinition, IDTableDefinition, AtIDTableDefinition, SQLiteMaster
+from sql_module.sqlite.definition import (
+    TableDefinition,
+    IDTableDefinition,
+    AtIDTableDefinition,
+    SCD2AtIDTableDefinition,
+    SQLiteMaster,
+)
 from sql_module.sqlite.sqlite import SQLiteDataBase

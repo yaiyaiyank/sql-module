@@ -35,26 +35,6 @@ class User(sql_module.AtIDTableDefinition):
         self.followers_count_column = self.get_column("followers_count", int)
 
 
-# ユーザー
-class UserSCD2(sql_module.AtIDTableDefinition):
-    def set_colmun_difinition(self):
-        # unique
-        # 命名規則: rest_id_columnと書く時、それはrest.idにreferencesしてるとき。今回はrest_idそのものなのでアンダーバーをつける。
-        # ChatGPTいわく、Xのrest_idは巨大整数問題を避けるため 文字列で返す。intでない。
-        self._rest_id_column = self.get_column("_rest_id", str, not_null=True, unique=True)
-
-        # 現在の名前
-        self.current_name_column = self.get_column("current_name", str, not_null=True)
-        # 現在のscreen_name(@部分)のid
-        self.current_screen_name_id_column = self.get_column("current_screen_name_id", int, not_null=True)
-        # bio
-        self.description_column = self.get_column("description", str)
-        # フォロー数
-        self.follows_count_column = self.get_column("follows_count", int)
-        # フォロワー数
-        self.followers_count_column = self.get_column("followers_count", int)
-
-
 class UserScreenName(sql_module.AtIDTableDefinition):
     """
     rest_id == '1823879767634141185', screen_name == 'oioioi525'

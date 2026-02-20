@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import datetime
 
 # このライブラリ
-from sql_module import Column
+from sql_module import Column, conds
 
 
 @dataclass
@@ -22,3 +22,7 @@ class Field:
     def __repr__(self) -> str:
         string = f"カラム名: {self.column.name}\nvalue: {self.value}\nupsert: {self.upsert}"
         return string
+
+    def to_eq(self, is_column_only_name: bool = False) -> conds.Eq:
+        eq = conds.Eq(self.column, self.value, is_column_only_name)
+        return eq

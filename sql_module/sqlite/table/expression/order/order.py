@@ -8,7 +8,7 @@ from sql_module import Column, Query, query_join_comma, expressions
 
 
 class OrderBy(Query):
-    def __init__(self, column: Column, is_asc: bool = True):
+    def __init__(self, column: Column, is_asc: bool = False):
         query = Query()
         query += f"{column.name} {self.get_sc(is_asc)}"
 
