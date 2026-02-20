@@ -85,7 +85,7 @@ class Driver:
         self,
         query: str,
         parameters: dict[str] | None = None,
-        time_log: Literal["print_log"] | utils.PrintLog | None = None,
+        time_log: utils.LogLike | None = None,
     ):
         """
         cursorを実行
@@ -103,16 +103,48 @@ class Driver:
         self.open_full()
         if parameters is None or parameters.__len__() == 0:
             self.cursor.execute(query)
-        # Noneや__len__() > 0
         else:
             self.cursor.execute(query, parameters)
 
         timer.finish("実行時間")
 
+    def executemany(
+        self,
+        query: str,
+        parameters: list[dict[str]],
+        time_log: utils.LogLike | None = None,
+    ):
+        """
+        cursorを実行
+
+        Args:
+            query (str): クエリ
+            parameters (dict[str] | None): プレースホルダのパラメータ
+            time_log (ログ系オブジェクト | None): 時間計測のログ。
+            - Noneなら出さない
+            - 'print_log'ならprintだけする
+            - ログ系オブジェクト(debugメソッドなどを持つ)なら、そのログを使う。
+        """
+        timer = utils.Timer(time_log=time_log)
+
+        # バルクには必要
+        if parameters is None:
+            raise exceptions.BulkError("バルクはパラメータが必要です。")
+
+        # パラメータの長さ0だとバルクする意味がない
+        if parameters.__len__() == 0:
+            timer.no("バルク実行・パラメータ数が0")
+            return
+
+        self.open_full()
+        self.cursor.executemany(query, parameters)
+
+        timer.finish("バルク実行")
+
     def rollback(self):
         self.conn.rollback()
 
-    def commit(self, time_log: Literal["print_log"] | utils.PrintLog | None = None):
+    def commit(self, time_log: utils.LogLike | None = None):
         """
         コミットする。
         Args:
@@ -135,12 +167,12 @@ class Driver:
         timer.finish("コミット時間")
 
     def fetchall(
-        self, dict_output: bool = False, time_log: Literal["print_log"] | utils.PrintLog | None = None
+        self, dict_output: bool = False, time_log: utils.LogLike | None = None
     ) -> list[dict[str]] | list[sqlite3.Row]:
         """
         全行取り出す
         Args:
-            dict_output (bool): 時間計測のログ。
+            dict_output (bool): 辞書で出力
             time_log (ログ系オブジェクト | None): 時間計測のログ。
             - Noneなら出さない
             - 'print_log'ならprintだけする
@@ -157,12 +189,12 @@ class Driver:
         return fetchall_list
 
     def fetchmany(
-        self, limit: int, dict_output: bool = False, time_log: Literal["print_log"] | utils.PrintLog | None = None
+        self, limit: int, dict_output: bool = False, time_log: utils.LogLike | None = None
     ) -> list[dict[str]] | list[sqlite3.Row]:
         """
         何行か取り出す
         Args:
-            dict_output (bool): 時間計測のログ。
+            dict_output (bool): 辞書で出力
             time_log (ログ系オブジェクト | None): 時間計測のログ。
             - Noneなら出さない
             - 'print_log'ならprintだけする
@@ -178,13 +210,11 @@ class Driver:
 
         return fetchmany_list
 
-    def fetchone(
-        self, dict_output: bool = False, time_log: Literal["print_log"] | utils.PrintLog | None = None
-    ) -> dict[str] | sqlite3.Row:
+    def fetchone(self, dict_output: bool = False, time_log: utils.LogLike | None = None) -> dict[str] | sqlite3.Row:
         """
         1行取り出す
         Args:
-            dict_output (bool): 時間計測のログ。
+            dict_output (bool): 辞書で出力
             time_log (ログ系オブジェクト | None): 時間計測のログ。
             - Noneなら出さない
             - 'print_log'ならprintだけする
@@ -203,12 +233,12 @@ class Driver:
         return fetchone
 
     def fetchgrid(
-        self, limit: int, dict_output: bool = False, time_log: Literal["print_log"] | utils.PrintLog | None = None
+        self, limit: int, dict_output: bool = False, time_log: utils.LogLike | None = None
     ) -> list[list[dict[str]]] | list[list[sqlite3.Row]]:
         """
         全行をlimitごとに取り出してリストに分ける
         Args:
-            dict_output (bool): 時間計測のログ。
+            dict_output (bool): 辞書で出力
             time_log (ログ系オブジェクト | None): 時間計測のログ。
             - Noneなら出さない
             - 'print_log'ならprintだけする

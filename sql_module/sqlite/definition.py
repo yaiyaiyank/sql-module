@@ -56,20 +56,36 @@ class TableDefinition:
     def exists(self) -> bool:
         return self.table.exists()
 
-    def make_index(self, column_list: list[Column] | Column, exists_ok: bool = True):
-        self.table.make_index(column_list, exists_ok)
+    def create_index(
+        self,
+        column_list: list[Column] | Column,
+        exists_ok: bool = True,
+        is_unique: bool = False,
+        where: conds.Cond | None = None,
+        index_name: str | None = None,
+        time_log: utils.LogLike | None = None,
+    ):
+        self.table.create_index(column_list, exists_ok, is_unique, where, index_name, time_log=time_log)
 
-    def delete_index(self, column_list: list[Column] | Column, not_exists_ok: bool = True):
-        self.table.delete_index(column_list, not_exists_ok)
+    def delete_index(
+        self,
+        column_list: list[Column] | Column,
+        not_exists_ok: bool = True,
+        is_unique: bool = False,
+        index_name: str | None = None,
+        time_log: utils.LogLike | None = None,
+    ):
+        self.table.delete_index(column_list, not_exists_ok, is_unique, index_name, time_log=time_log)
 
     def create(
         self,
         composite_constraint: list[CompositeConstraint] | CompositeConstraint | None = None,
         exists_ok: bool = True,
         is_execute: bool = True,
+        time_log: utils.LogLike | None = None,
     ) -> Query:
         column_list = self._get_create_column()
-        create = self.table.create(column_list, composite_constraint, exists_ok, is_execute)
+        create = self.table.create(column_list, composite_constraint, exists_ok, is_execute, time_log=time_log)
         return create
 
     def insert(
@@ -77,13 +93,16 @@ class TableDefinition:
         record: list[Field] | Field,
         is_execute: bool = True,
         is_returning_id: bool = False,
-        time_log: Literal["print_log"] | utils.PrintLog | None = None,
+        time_log: utils.LogLike | None = None,
     ) -> Insert:
         insert = self.table.insert(record, is_execute, is_returning_id, time_log=time_log)
         return insert
 
-    def bulk_insert(self, insert_list: list[Insert], time_log: Literal["print_log"] | utils.PrintLog | None = None):
+    def bulk_insert(self, insert_list: list[Insert], time_log: utils.LogLike | None = None):
         self.table.bulk_insert(insert_list, time_log=time_log)
+
+    def bulk_insert2(self, insert_list: list[Insert], time_log: utils.LogLike | None = None):
+        self.table.bulk_insert2(insert_list, time_log=time_log)
 
     def update(
         self,
@@ -92,7 +111,7 @@ class TableDefinition:
         non_where_safe: bool = True,
         is_execute: bool = True,
         is_returning_id: bool = False,
-        time_log: Literal["print_log"] | utils.PrintLog | None = None,
+        time_log: utils.LogLike | None = None,
     ) -> Update:
         update = self.table.update(record, where, non_where_safe, is_execute, is_returning_id, time_log=time_log)
         return update
@@ -104,11 +123,11 @@ class TableDefinition:
         join: list[Join] | Join | None = None,
         group_by: list[Column] | Column | None = None,
         order_by: list[OrderBy] | OrderBy | None = None,
-        having: None = None,
+        having: conds.Cond | None = None,
         limit: int | None = None,
         is_from: bool = True,
         is_execute: bool = True,
-        time_log: Literal["print_log"] | utils.PrintLog | None = None,
+        time_log: utils.LogLike | None = None,
     ) -> Select:
         # もしかしたらサブクエリやるかも
         select = self.table.select(
@@ -162,22 +181,39 @@ class AtIDTableDefinition(IDTableDefinition):
             "updated_at", type=datetime.datetime, default_value="CURRENT_TIMESTAMP"
         )
 
+    def _get_append_update_column_record(self, record: list[Field] | Field) -> list[Field]:
+        if isinstance(record, Field):
+            record = [record]
+        record = record.copy()
+        # upsert・upsert時に必要
+        update_field = Field(self.updated_at_column, datetime.datetime.now(datetime.timezone.utc))
+        record.append(update_field)
+        return record
+
     def insert(
         self,
         record: list[Field] | Field,
         is_execute: bool = True,
         is_returning_id: bool = False,
-        time_log: Literal["print_log"] | utils.PrintLog | None = None,
+        time_log: utils.LogLike | None = None,
     ) -> Insert:
-        if isinstance(record, Field):
-            record = [record]
-        record = record.copy()
-        # upsertでのupdate時に必要
-        update_field = Field(self.updated_at_column, datetime.datetime.now(datetime.timezone.utc))
-        record.append(update_field)
+        record = self._get_append_update_column_record(record)
 
         insert = self.table.insert(record, is_execute, is_returning_id, time_log=time_log)
         return insert
+
+    # bulk_insert2はinsertにupdated_atを織り込み済みなのでオーバーライド不要
+    def bulk_insert(
+        self,
+        record_list: list[list[Field]] | list[Field],
+        time_log: utils.LogLike | None = None,
+    ):
+        record_list2 = []
+        for record in record_list:
+            record = self._get_append_update_column_record(record)
+            record_list2.append(record)
+
+        self.table.bulk_insert(record_list2, time_log=time_log)
 
     def update(
         self,
@@ -186,14 +222,9 @@ class AtIDTableDefinition(IDTableDefinition):
         non_where_safe: bool = True,
         is_execute: bool = True,
         is_returning_id: bool = False,
-        time_log: Literal["print_log"] | utils.PrintLog | None = None,
+        time_log: utils.LogLike | None = None,
     ) -> Update:
-        if isinstance(record, Field):
-            record = [record]
-        record = record.copy()
-        # updateで必要
-        update_field = Field(self.updated_at_column, datetime.datetime.now(datetime.timezone.utc))
-        record.append(update_field)
+        record = self._get_append_update_column_record(record)
 
         insert = self.table.update(record, where, non_where_safe, is_execute, is_returning_id, time_log=time_log)
         return insert

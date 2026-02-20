@@ -1,5 +1,8 @@
-class PrintLog:
-    """debugやinfoをもつログクラスのダミー。型ヒント用"""
+class LogLike:
+    """
+    ログクラスのダミー。print・型ヒント用
+    他ライブラリのオブジェクトとして、logging_module.Logオブジェクトなどを注入できる
+    """
 
     def debug(self, string: str):
         print(string)

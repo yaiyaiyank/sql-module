@@ -9,7 +9,7 @@ from sql_module.exceptions import FetchNotFoundError
 
 
 class Insert(Query):
-    def fetch_id(self, time_log: Literal["print_log"] | utils.PrintLog | None = None) -> int:
+    def fetch_id(self, time_log: utils.LogLike | None = None) -> int:
         """insert後にidをfetch"""
         try:
             id_dict = self.driver.fetchone(time_log=time_log)

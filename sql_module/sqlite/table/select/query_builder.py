@@ -37,42 +37,34 @@ class Select(SubQuery):
         self.select_type = select_type
 
     def fetchall(
-        self, dict_output: bool = False, time_log: Literal["print_log"] | utils.PrintLog | None = None
+        self, dict_output: bool = False, time_log: utils.LogLike | None = None
     ) -> list[dict[str]] | list[sqlite3.Row]:
         return self.driver.fetchall(dict_output, time_log=time_log)
 
     def fetchmany(
-        self, limit: int, dict_output: bool = False, time_log: Literal["print_log"] | utils.PrintLog | None = None
+        self, limit: int, dict_output: bool = False, time_log: utils.LogLike | None = None
     ) -> list[dict[str]] | list[sqlite3.Row]:
         return self.driver.fetchmany(limit, dict_output, time_log=time_log)
 
     def fetchgrid(
-        self, limit: int, dict_output: bool = False, time_log: Literal["print_log"] | utils.PrintLog | None = None
+        self, limit: int, dict_output: bool = False, time_log: utils.LogLike | None = None
     ) -> list[dict[str]] | list[sqlite3.Row]:
         return self.driver.fetchgrid(limit, dict_output, time_log=time_log)
 
-    def fetchone(
-        self, dict_output: bool = False, time_log: Literal["print_log"] | utils.PrintLog | None = None
-    ) -> dict[str] | sqlite3.Row:
+    def fetchone(self, dict_output: bool = False, time_log: utils.LogLike | None = None) -> dict[str] | sqlite3.Row:
         return self.driver.fetchone(dict_output, time_log=time_log)
 
-    def fetchall_value_list(
-        self, time_log: Literal["print_log"] | utils.PrintLog | None = None
-    ) -> list[int | str | None]:
+    def fetchall_value_list(self, time_log: utils.LogLike | None = None) -> list[int | str | None]:
         """単一カラムのfetchした値のリストを取得"""
         fetchall = self.driver.fetchall(time_log=time_log)
         return [fetch[0] for fetch in fetchall]
 
-    def fetchmany_value_list(
-        self, limit: int, time_log: Literal["print_log"] | utils.PrintLog | None = None
-    ) -> list[int | str | None]:
+    def fetchmany_value_list(self, limit: int, time_log: utils.LogLike | None = None) -> list[int | str | None]:
         """単一カラムのfetchした値のリストを取得"""
         fetchmany = self.driver.fetchmany(limit, time_log=time_log)
         return [fetch[0] for fetch in fetchmany]
 
-    def fetchgrid_value_list(
-        self, limit: int, time_log: Literal["print_log"] | utils.PrintLog | None = None
-    ) -> list[list[int | str | None]]:
+    def fetchgrid_value_list(self, limit: int, time_log: utils.LogLike | None = None) -> list[list[int | str | None]]:
         all_list = []
         while True:
             fetchmany_value_list = self.fetchmany_value_list(limit, time_log=time_log)
@@ -84,7 +76,7 @@ class Select(SubQuery):
 
         return all_list
 
-    def fetchone_value(self, time_log: Literal["print_log"] | utils.PrintLog | None = None) -> int | str | None:
+    def fetchone_value(self, time_log: utils.LogLike | None = None) -> int | str | None:
         """単一カラムのfetchした値を取得"""
         fetchone = self.driver.fetchone(time_log=time_log)
         return fetchone[0]
@@ -204,11 +196,13 @@ class SelectQueryBuilder:
         group_by_query = "GROUP BY " + group_by_query_base
         return group_by_query
 
-    def get_having_query(self, having: None = None) -> Query:
+    def get_having_query(self, having: conds.Cond | None = None) -> Query:
         if having is None:
             return Query()
 
-        raise NotImplementedError("havingの引数ありは今非対応です。")
+        having_query = "HAVING " + having
+
+        return having_query
 
     def get_order_by_query(self, order_by: list[OrderBy] | OrderBy | None = None) -> Query:
         if order_by is None:

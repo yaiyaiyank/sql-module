@@ -1,9 +1,12 @@
 """集計関数"""
 
-from sql_module import Query, Column, expressions
+from sql_module import Query, expressions
+from sql_module.sqlite.table.column.interface import ColumnLike
 
 
 class Func(Query):
+    """関数"""
+
     pass
 
 
@@ -18,40 +21,40 @@ class FuncOne(Func, expressions.ScalarzationExpression):
 
 
 class Count(FuncOne):
-    def __init__(self, column: Column | None = None):
+    def __init__(self, column: ColumnLike | None = None, is_column_only_name: bool = False):
         query = Query()
-        if isinstance(column, Column):
-            query += f"COUNT({column.name})"
+        if isinstance(column, ColumnLike):
+            query += "COUNT(" + column.name.to_query(is_column_only_name) + ")"
         if column is None:
             query += "COUNT(*)"
         self.straight_set(query)
 
 
 class Sum(FuncOne):
-    def __init__(self, column: Column):
+    def __init__(self, column: ColumnLike, is_column_only_name: bool = False):
         query = Query()
-        query += f"SUM({column.name})"
+        query += "SUM(" + column.name.to_query(is_column_only_name) + ")"
         self.straight_set(query)
 
 
 class Average(FuncOne):
-    def __init__(self, column: Column):
+    def __init__(self, column: ColumnLike, is_column_only_name: bool = False):
         query = Query()
-        query += f"AVG({column.name})"
+        query += "AVG(" + column.name.to_query(is_column_only_name) + ")"
         self.straight_set(query)
 
 
 class Min(FuncOne):
-    def __init__(self, column: Column):
+    def __init__(self, column: ColumnLike, is_column_only_name: bool = False):
         query = Query()
-        query += f"MIN({column.name})"
+        query += "MIN(" + column.name.to_query(is_column_only_name) + ")"
         self.straight_set(query)
 
 
 class Max(FuncOne):
-    def __init__(self, column: Column):
+    def __init__(self, column: ColumnLike, is_column_only_name: bool = False):
         query = Query()
-        query += f"MAX({column.name})"
+        query += "MAX(" + column.name.to_query(is_column_only_name) + ")"
         self.straight_set(query)
 
 
@@ -66,35 +69,35 @@ class Coalesce(FuncOne):
 
 
 class Length(FuncAll):
-    def __init__(self, column: Column):
+    def __init__(self, column: ColumnLike, is_column_only_name: bool = False):
         query = Query()
-        query += f"LENGTH({column.name})"
+        query += "LENGTH(" + column.name.to_query(is_column_only_name) + ")"
         self.straight_set(query)
 
 
 class Lower(FuncAll):
-    def __init__(self, column: Column):
+    def __init__(self, column: ColumnLike, is_column_only_name: bool = False):
         query = Query()
-        query += f"LOWER({column.name})"
+        query += "LOWER(" + column.name.to_query(is_column_only_name) + ")"
         self.straight_set(query)
 
 
 class Upper(FuncAll):
-    def __init__(self, column: Column):
+    def __init__(self, column: ColumnLike, is_column_only_name: bool = False):
         query = Query()
-        query += f"UPPER({column.name})"
+        query += "UPPER(" + column.name.to_query(is_column_only_name) + ")"
         self.straight_set(query)
 
 
 class Left(FuncAll):
-    def __init__(self, column: Column, n: int):
+    def __init__(self, column: ColumnLike, n: int, is_column_only_name: bool = False):
         query = Query()
-        query += f"substr({column.name}, 1, {n})"
+        query += "substr(" + column.name.to_query(is_column_only_name) + f", 1, {n})"
         self.straight_set(query)
 
 
 class Right(FuncAll):
-    def __init__(self, column: Column, n: int):
+    def __init__(self, column: ColumnLike, n: int, is_column_only_name: bool = False):
         query = Query()
-        query += f"substr({column.name}, -{n})"
+        query += "substr(" + column.name.to_query(is_column_only_name) + f", -{n})"
         self.straight_set(query)

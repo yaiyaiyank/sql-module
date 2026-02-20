@@ -6,6 +6,10 @@ class FetchNotFoundError(SQLException):
     """Fetchするものがなかった"""
 
 
+class BulkError(SQLException):
+    """バルク系エラー"""
+
+
 class ColumnAlreadyRegistrationError(SQLException):
     """既にカラム登録しているときのエラー"""
 
@@ -20,3 +24,7 @@ class DefenseAccidentException(SQLException):
 
 class SQLTypeError(SQLException):
     "そのPythonの型に対応するsqlite用の型がないときのエラー"
+
+
+class SQLValueError(SQLException):
+    "そのPythonの値に対応するsqlite用の値がないときのエラー"
