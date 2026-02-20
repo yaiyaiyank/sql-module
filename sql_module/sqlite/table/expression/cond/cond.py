@@ -77,6 +77,14 @@ class And(CondBool):
             left_where = "(" + left_where + ")"
         if isinstance(right_where, Or):
             right_where = "(" + right_where + ")"
+        # Trueの場合はそのままでいい
+        if isinstance(left_where, TRUE):
+            self.straight_set(right_where)
+            return
+        if isinstance(right_where, TRUE):
+            self.straight_set(left_where)
+            return
+
         query = left_where + " AND " + right_where
 
         self.straight_set(query)
@@ -93,6 +101,14 @@ class Or(CondBool):
             left_where = "(" + left_where + ")"
         if isinstance(right_where, And | Range):
             right_where = "(" + right_where + ")"
+        # Falseの場合はそのままでいい
+        if isinstance(left_where, FALSE):
+            self.straight_set(right_where)
+            return
+        if isinstance(right_where, FALSE):
+            self.straight_set(left_where)
+            return
+
         query = left_where + " OR " + right_where
 
         self.straight_set(query)
@@ -117,7 +133,7 @@ class Eq(CondCond):
         """
         例:
         'user.id = :p0', {'p0': 2}
-        'user.created_at >= :p0', {'p0': '2025-03-04 22:44:59'}
+        'user.created_at = :p0', {'p0': '2025-03-04 22:44:59'}
         """
         query = Query()
         query += self.get_column_name_query(column, is_column_only_name)
@@ -322,8 +338,8 @@ class Range(CondCond):
     def __init__(
         self,
         column: ColumnLike | funcs.Func,
-        start_value: str | int | bytes | Path | datetime.date | ColumnLike | SubQuery,
-        end_value: str | int | bytes | Path | datetime.date | ColumnLike | SubQuery,
+        start_value: str | int | bytes | Path | datetime.date | ColumnLike | SubQuery | None,
+        end_value: str | int | bytes | Path | datetime.date | ColumnLike | SubQuery | None,
         include_start: bool = True,
         include_end: bool = False,
         is_column_only_name: bool = True,
@@ -332,14 +348,15 @@ class Range(CondCond):
         例:
         'user.updated_at >= :p0 AND user.updated_at < :p1', {'p0': '2022-02-22 00:00:00', 'p1': '2022-02-23 00:00:00'}
         """
-        if start_value is None or end_value is None:
-            raise TypeError("None禁止")
-
-        if include_start:
+        if start_value is None:
+            greater = TRUE()
+        elif include_start:
             greater = GreaterEq(column, start_value, is_column_only_name)
         else:
             greater = Greater(column, start_value, is_column_only_name)
-        if include_end:
+        if end_value is None:
+            less = TRUE()
+        elif include_end:
             less = LessEq(column, end_value), is_column_only_name
         else:
             less = Less(column, end_value, is_column_only_name)

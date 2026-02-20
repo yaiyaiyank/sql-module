@@ -39,9 +39,8 @@ class SQLiteDataBase:
     def get_exists_table_list(self) -> list[Table]:
         # SELECT name FROM sqlite_master WHERE type='table'
         sqlite_master = self.get_sqlite_master_table_definition()
-        select = sqlite_master.select(sqlite_master.name_column, conds.Eq(sqlite_master.type_column, "table"))
-        tables = select.fetchall()
-        return [self.get_table(table[0]) for table in tables]
+        exists_table_name_list = sqlite_master.get_exists_table_name_list()
+        return [self.get_table(exists_table_name) for exists_table_name in exists_table_name_list]
 
     def _set_journal_mode(self):
         self.driver.execute("PRAGMA journal_mode")

@@ -232,6 +232,7 @@ class Table:
         self,
         record: list[Field] | Field,
         is_execute: bool = True,
+        is_commit: bool = True,
         is_returning_id: bool = False,
         time_log: utils.LogLike | None = None,
     ) -> Insert:
@@ -264,7 +265,7 @@ class Table:
         if is_execute:
             insert.execute(time_log=time_log)
             # fetch待ちがあると 「OperationalError: cannot commit transaction - SQL statements in progress」になるので、fetch_idしないときのみコミット。
-            if not is_returning_id:
+            if not is_returning_id and is_commit:
                 insert.commit(time_log=time_log)
 
         return insert
@@ -335,6 +336,7 @@ class Table:
         where: conds.Cond | None = None,
         non_where_safe: bool = True,
         is_execute: bool = True,
+        is_commit: bool = True,
         is_returning_id: bool = False,
         time_log: utils.LogLike | None = None,
     ) -> Update:
@@ -366,7 +368,9 @@ class Table:
 
         if is_execute:
             update.execute(time_log=time_log)
-            update.commit(time_log=time_log)
+            # fetch待ちがあると 「OperationalError: cannot commit transaction - SQL statements in progress」になるので、fetch_idしないときのみコミット。
+            if not is_returning_id and is_commit:
+                update.commit(time_log=time_log)
 
         return update
 
