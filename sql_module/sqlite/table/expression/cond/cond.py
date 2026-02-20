@@ -4,11 +4,14 @@ from dataclasses import dataclass
 import datetime
 from typing import Self
 
-from sql_module import Column, Query, query_join_comma, expressions
+from sql_module import Query, query_join_comma, expressions, funcs
 from sql_module.sqlite.table.sub_query import SubQuery
+from sql_module.sqlite.table.column.interface import ColumnLike
 
 
 class Cond(Query, expressions.Expression):
+    """条件"""
+
     def __and__(self, other: Self) -> Self:
         return And(self, other)
 
@@ -24,20 +27,43 @@ class CondBool(Cond):
 
 
 class CondCond(Cond):
-    def get_value_query(self, column: Column, value: str | int | bytes | Path | datetime.date | Column | SubQuery):
+    def get_value_query(
+        self,
+        column: ColumnLike | funcs.Func,
+        value: str | int | bytes | Path | datetime.date | ColumnLike | SubQuery,
+        is_column_only_name: bool = False,
+    ) -> Query:
         query = Query()
         # カラムなら列比較
-        if isinstance(value, Column):
-            query += value.name.__str__()
-        elif isinstance(value, SubQuery):
+        if isinstance(value, ColumnLike):
+            query += value.name.to_query(is_column_only_name)
+            return query
+        if isinstance(value, SubQuery):
             query += "("
             query += value
             query += ")"
+            return query
         # 値
-        else:
+        if isinstance(column, ColumnLike):
             query *= column.constraint.get_sql_value(value)
+            return query
+        # havingなどで使う
+        if isinstance(column, funcs.Func):
+            if not isinstance(value, int):
+                raise ValueError("having句ではintのみ対応です。")
+            query *= value
+            return query
+            # インデックス生成のwhereでint以外の値使わんだろうしこれでいい
 
-        return query
+        raise ValueError(f"{column} ・ {value}の組み合わせのCondオブジェクトは作れません。")
+
+    def get_column_name_query(self, column: ColumnLike | funcs.Func, is_column_only_name: bool = False) -> Query:
+        if isinstance(column, ColumnLike):
+            return column.name.to_query(is_column_only_name)
+        if isinstance(column, funcs.Func):
+            return column
+
+        raise ValueError(f"{column} はカラム名クエリに変換できません。")
 
 
 class And(CondBool):
@@ -82,25 +108,37 @@ class Not(CondBool):
 
 
 class Eq(CondCond):
-    def __init__(self, column: Column, value: str | int | bytes | Path | datetime.date | Column | SubQuery | None):
+    def __init__(
+        self,
+        column: ColumnLike | funcs.Func,
+        value: str | int | bytes | Path | datetime.date | ColumnLike | SubQuery | None,
+        is_column_only_name: bool = False,
+    ):
         """
         例:
         'user.id = :p0', {'p0': 2}
         'user.created_at >= :p0', {'p0': '2025-03-04 22:44:59'}
         """
         query = Query()
+        query += self.get_column_name_query(column, is_column_only_name)
         if value is None:
-            query += f"{column.name} IS NULL"
+            query += " IS NULL"
             self.straight_set(query)
+            return
 
-        query += f"{column.name} = "
-        query += self.get_value_query(column, value)
+        query += " = "
+        query += self.get_value_query(column, value, is_column_only_name)
 
         self.straight_set(query)
 
 
 class GreaterEq(CondCond):
-    def __init__(self, column: Column, value: str | int | bytes | Path | datetime.date | Column | SubQuery):
+    def __init__(
+        self,
+        column: ColumnLike | funcs.Func,
+        value: str | int | bytes | Path | datetime.date | ColumnLike | SubQuery,
+        is_column_only_name: bool = False,
+    ):
         """
         例:
         'user.age >= :p0', {'p0': 20}
@@ -110,14 +148,20 @@ class GreaterEq(CondCond):
         if value is None:
             raise TypeError("None禁止")
 
-        query += f"{column.name} >= "
-        query += self.get_value_query(column, value)
+        query += self.get_column_name_query(column, is_column_only_name)
+        query += " >= "
+        query += self.get_value_query(column, value, is_column_only_name)
 
         self.straight_set(query)
 
 
 class Greater(CondCond):
-    def __init__(self, column: Column, value: str | int | bytes | Path | datetime.date | Column | SubQuery):
+    def __init__(
+        self,
+        column: ColumnLike | funcs.Func,
+        value: str | int | bytes | Path | datetime.date | ColumnLike | SubQuery,
+        is_column_only_name: bool = False,
+    ):
         """
         例:
         'user.age > :p0', {'p0': 20}
@@ -127,14 +171,20 @@ class Greater(CondCond):
         if value is None:
             raise TypeError("None禁止")
 
-        query += f"{column.name} > "
-        query += self.get_value_query(column, value)
+        query += self.get_column_name_query(column, is_column_only_name)
+        query += " > "
+        query += self.get_value_query(column, value, is_column_only_name)
 
         self.straight_set(query)
 
 
 class LessEq(CondCond):
-    def __init__(self, column: Column, value: str | int | bytes | Path | datetime.date | Column | SubQuery):
+    def __init__(
+        self,
+        column: ColumnLike | funcs.Func,
+        value: str | int | bytes | Path | datetime.date | ColumnLike | SubQuery,
+        is_column_only_name: bool = False,
+    ):
         """
         例:
         'user.age <= :p0', (20,)
@@ -144,14 +194,20 @@ class LessEq(CondCond):
         if value is None:
             raise TypeError("None禁止")
 
-        query += f"{column.name} <= "
-        query += self.get_value_query(column, value)
+        query += self.get_column_name_query(column, is_column_only_name)
+        query += " <= "
+        query += self.get_value_query(column, value, is_column_only_name)
 
         self.straight_set(query)
 
 
 class Less(CondCond):
-    def __init__(self, column: Column, value: str | int | bytes | Path | datetime.date | Column | SubQuery):
+    def __init__(
+        self,
+        column: ColumnLike | funcs.Func,
+        value: str | int | bytes | Path | datetime.date | ColumnLike | SubQuery,
+        is_column_only_name: bool = False,
+    ):
         """
         例:
         'user.age < :p0', (20,)
@@ -161,14 +217,20 @@ class Less(CondCond):
         if value is None:
             raise TypeError("None禁止")
 
-        query += f"{column.name} < "
-        query += self.get_value_query(column, value)
+        query += self.get_column_name_query(column, is_column_only_name)
+        query += " < "
+        query += self.get_value_query(column, value, is_column_only_name)
 
         self.straight_set(query)
 
 
 class StartsWith(CondCond):
-    def __init__(self, column: Column, value: str | int | bytes | Path | datetime.date | Column | SubQuery):
+    def __init__(
+        self,
+        column: ColumnLike | funcs.Func,
+        value: str | int | bytes | Path | datetime.date | ColumnLike | SubQuery,
+        is_column_only_name: bool = False,
+    ):
         """
         例:
         'device.bender LIKE :p0%', {'p0': 'Xiaomi'}
@@ -177,15 +239,21 @@ class StartsWith(CondCond):
         if value is None:
             raise TypeError("None禁止")
 
-        query += f"{column.name} LIKE "
-        query += self.get_value_query(column, value)
+        query += self.get_column_name_query(column, is_column_only_name)
+        query += " LIKE "
+        query += self.get_value_query(column, value, is_column_only_name)
         query += " || '%'"
 
         self.straight_set(query)
 
 
 class EndsWith(CondCond):
-    def __init__(self, column: Column, value: str | int | bytes | Path | datetime.date | Column | SubQuery):
+    def __init__(
+        self,
+        column: ColumnLike | funcs.Func,
+        value: str | int | bytes | Path | datetime.date | ColumnLike | SubQuery,
+        is_column_only_name: bool = False,
+    ):
         """
         例:
         'device.bender LIKE %:p0', {'p0': 'ホールディングス'}
@@ -194,14 +262,20 @@ class EndsWith(CondCond):
         if value is None:
             raise TypeError("None禁止")
 
-        query += f"{column.name} LIKE '%' || "
-        query += self.get_value_query(column, value)
+        query += self.get_column_name_query(column, is_column_only_name)
+        query += "LIKE '%' || "
+        query += self.get_value_query(column, value, is_column_only_name)
 
         self.straight_set(query)
 
 
 class Contains(CondCond):
-    def __init__(self, column: Column, value: str | int | bytes | Path | datetime.date | Column | SubQuery):
+    def __init__(
+        self,
+        column: ColumnLike | funcs.Func,
+        value: str | int | bytes | Path | datetime.date | ColumnLike | SubQuery,
+        is_column_only_name: bool = False,
+    ):
         """
         例:
         'device.bender LIKE %:p0', {'p0': 'うおｗ'}
@@ -210,26 +284,33 @@ class Contains(CondCond):
         if value is None:
             raise TypeError("None禁止")
 
-        query += f"{column.name} LIKE '%' || "
-        query += self.get_value_query(column, value)
+        query += self.get_column_name_query(column, is_column_only_name)
+        query += "LIKE '%' || "
+        query += self.get_value_query(column, value, is_column_only_name)
         query += " || '%'"
 
         self.straight_set(query)
 
 
 class In(CondCond):
-    def __init__(self, column: Column, value_list: list[str | int | bytes | Path | datetime.date | None] | SubQuery):
+    def __init__(
+        self,
+        column: ColumnLike | funcs.Func,
+        value_list: list[str | int | bytes | Path | datetime.date | None] | SubQuery,
+        is_column_only_name: bool = False,
+    ):
         """
         例:
         'channel.name IN (:p0, :p1, :p2)', {'p0': 'おお', 'p0': 'どわーｗふ', 'p0': 'ぬ'}
         """
         query = Query()
 
-        query += f"{column.name} IN ("
+        query += self.get_column_name_query(column, is_column_only_name)
+        query += " IN ("
         if isinstance(value_list, SubQuery):
             query += value_list
         else:
-            value_query_list = [Query() * column.constraint.get_sql_value(value_) for value_ in value_list]
+            value_query_list = [self.get_value_query(column, value, is_column_only_name) for value in value_list]
             joined_value_query = query_join_comma(value_query_list)
             query += joined_value_query
         query += ")"
@@ -240,11 +321,12 @@ class In(CondCond):
 class Range(CondCond):
     def __init__(
         self,
-        column: Column,
-        start_value: str | int | bytes | Path | datetime.date | Column | SubQuery,
-        end_value: str | int | bytes | Path | datetime.date | Column | SubQuery,
+        column: ColumnLike | funcs.Func,
+        start_value: str | int | bytes | Path | datetime.date | ColumnLike | SubQuery,
+        end_value: str | int | bytes | Path | datetime.date | ColumnLike | SubQuery,
         include_start: bool = True,
         include_end: bool = False,
+        is_column_only_name: bool = True,
     ):
         """
         例:
@@ -254,13 +336,13 @@ class Range(CondCond):
             raise TypeError("None禁止")
 
         if include_start:
-            greater = GreaterEq(column, start_value)
+            greater = GreaterEq(column, start_value, is_column_only_name)
         else:
-            greater = Greater(column, start_value)
+            greater = Greater(column, start_value, is_column_only_name)
         if include_end:
-            less = LessEq(column, end_value)
+            less = LessEq(column, end_value), is_column_only_name
         else:
-            less = Less(column, end_value)
+            less = Less(column, end_value, is_column_only_name)
 
         self.straight_set(greater & less)
 

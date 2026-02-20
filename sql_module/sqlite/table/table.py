@@ -11,6 +11,9 @@ from sql_module.sqlite.table.column.column_constraint import ColumnConstraint
 # info
 from sql_module.sqlite.table.info import Info
 
+# index系
+from sql_module.sqlite.table.index.query_builder import IndexQueryBuilder
+
 # create系
 from sql_module import CompositeConstraint
 from sql_module.sqlite.table.create.query_builder import CreateQueryBuilder
@@ -100,7 +103,7 @@ class Table:
         else:
             return False
 
-    def info(self, show: bool = True) -> Info:
+    def info(self, show: bool = False) -> Info:
         """
         このテーブルの持つ情報を詰め込んだinfoオブジェクトを取得。infoオブジェクトは以下の変数を持つ
         - column_info_list: 各カラムの情報(複合除く)
@@ -117,34 +120,63 @@ class Table:
             print(info)
         return info
 
-    def make_index(self, column_list: list[Column] | Column, exists_ok: bool = True):
+    def create_index(
+        self,
+        column_list: list[Column] | Column,
+        exists_ok: bool = True,
+        is_unique: bool = False,
+        where: conds.Cond | None = None,
+        index_name: str | None = None,
+        time_log: utils.LogLike | None = None,
+    ):
         """インデックス生成(複合)"""
         if isinstance(column_list, Column):
-            column_list.make_index(exists_ok)
+            column_list.create_index(exists_ok, is_unique, where, index_name, time_log=time_log)
             return
         if isinstance(column_list, list):
-            columns_query = utils.join_comma([column.name.name for column in column_list])
-            columns_name = utils.join_under(sorted([column.name.name for column in column_list]))
-            if exists_ok:
-                self.driver.execute(
-                    f"CREATE INDEX IF NOT EXISTS idx_{self.name}_{columns_name} ON {self.name}({columns_query})"
-                )
-            else:
-                self.driver.execute(f"CREATE INDEX idx_{self.name}_{columns_name} ON {self.name}({columns_query})")
+            column_name_list = [column.name for column in column_list]
+            # index_name引数がある場合、インデックス名にカラム名の順序があるのでソート大事
+            sorted_column_name_list = sorted(column_name_list, key=lambda column_name: column_name.name)
+
+            query_builder = IndexQueryBuilder(self.driver)
+            head_query = query_builder.get_create_head_query(exists_ok, is_unique)
+            _index_name = query_builder.get_index_name(sorted_column_name_list, index_name, is_unique)
+            on_query = query_builder.get_on_query(sorted_column_name_list)
+            where_query = query_builder.get_where_query(where)
+
+            create_index = head_query + " " + _index_name + " " + on_query + " " + where_query
+
+            create_index.execute(time_log=time_log)
+            create_index.commit(time_log=time_log)
             return
+
         raise TypeError("index作成はカラムのみです。")
 
-    def delete_index(self, column_list: list[Column] | Column, not_exists_ok: bool = True):
+    def delete_index(
+        self,
+        column_list: list[Column] | Column,
+        not_exists_ok: bool = True,
+        is_unique: bool = False,
+        index_name: str | None = None,
+        time_log: utils.LogLike | None = None,
+    ):
         """インデックス削除(複合)"""
         if isinstance(column_list, Column):
-            column_list.delete_index(not_exists_ok)
+            column_list.delete_index(not_exists_ok, is_unique, index_name, time_log=time_log)
             return
         if isinstance(column_list, list):
-            columns_name = utils.join_under(sorted([column.name.name for column in column_list]))
-            if not_exists_ok:
-                self.driver.execute(f"DROP INDEX IF EXISTS idx_{self.name}_{columns_name}")
-            else:
-                self.driver.execute(f"DROP INDEX idx_{self.name}_{columns_name}")
+            column_name_list = [column.name for column in column_list]
+            # index_name引数がある場合、インデックス名にカラム名の順序があるのでソート大事
+            sorted_column_name_list = sorted(column_name_list, key=lambda column_name: column_name.name)
+
+            query_builder = IndexQueryBuilder(self.driver)
+            head_query = query_builder.get_delete_head_query(not_exists_ok)
+            _index_name = query_builder.get_index_name(sorted_column_name_list, index_name, is_unique)
+
+            delete_index = head_query + " " + _index_name
+
+            delete_index.execute(time_log=time_log)
+            delete_index.commit(time_log=time_log)
             return
         raise TypeError("index削除はカラムのみです。")
 
@@ -154,6 +186,7 @@ class Table:
         composite_constraint: list[CompositeConstraint] | CompositeConstraint | None = None,
         exists_ok: bool = True,
         is_execute: bool = True,
+        time_log: utils.LogLike | None = None,
     ) -> Query:
         """
         テーブル作成
@@ -180,17 +213,27 @@ class Table:
         create = head_query + f" {self.name} (" + constraint_query + ")"
 
         if is_execute:
-            create.execute()
-            create.commit()
+            create.execute(time_log=time_log)
+            create.commit(time_log=time_log)
 
         return create
+
+    def delete(self, not_exists_ok: bool = True):
+        query = Query(driver=self.driver)
+        if not_exists_ok:
+            query += "DROP TABLE IF EXISTS "
+        else:
+            query += "DROP TABLE "
+
+        query += self.name
+        query.execute()
 
     def insert(
         self,
         record: list[Field] | Field,
         is_execute: bool = True,
         is_returning_id: bool = False,
-        time_log: Literal["print_log"] | utils.PrintLog | None = None,
+        time_log: utils.LogLike | None = None,
     ) -> Insert:
         """
         行を挿入
@@ -226,7 +269,46 @@ class Table:
 
         return insert
 
-    def bulk_insert(self, insert_list: list[Insert], time_log: Literal["print_log"] | utils.PrintLog | None = None):
+    def bulk_insert(
+        self,
+        record_list: list[list[Field]] | list[Field],
+        time_log: utils.LogLike | None = None,
+    ):
+        """
+        バルクインサートをついに実装！
+
+        Args:
+            insert_list (list[Insert]): まだ実行していないInsertオブジェクトのリスト
+        """
+        if record_list.__len__() == 0:
+            return
+
+        sample_query_string = None
+        sample_placeholder_dict = None
+
+        placeholder_dict_list = []
+        for i, record in enumerate(record_list):
+            insert = self.insert(record, is_execute=False)
+            query_string, placeholder_dict = insert.measurement()
+            # クエリ文字列やプレースホルダの長さはすべて等しい必要がある
+            # 1行目のクエリ文字列とプレースホルダの長さを見本とする
+            if i == 0:
+                sample_query_string = query_string
+                sample_placeholder_dict = placeholder_dict
+            elif query_string != sample_query_string:
+                raise exceptions.BulkError(
+                    f"クエリ文字列が等しくないレコードが存在します。\n1レコード目: {sample_query_string}\n{i + 1}レコード目: {query_string}"
+                )
+            elif placeholder_dict.__len__() != sample_placeholder_dict.__len__():
+                raise exceptions.BulkError(
+                    f"クエリ文字列が等しくないレコードが存在します。\n1レコード目の長さ: {sample_placeholder_dict.__len__()}\n{i + 1}レコード目の長さ: {placeholder_dict.__len__()}"
+                )
+            placeholder_dict_list.append(placeholder_dict)
+
+        self.driver.executemany(sample_query_string, placeholder_dict_list, time_log=time_log)
+        self.driver.commit(time_log=time_log)
+
+    def bulk_insert2(self, insert_list: list[Insert], time_log: utils.LogLike | None = None):
         """
         バルクインサートをついに実装！
 
@@ -254,7 +336,7 @@ class Table:
         non_where_safe: bool = True,
         is_execute: bool = True,
         is_returning_id: bool = False,
-        time_log: Literal["print_log"] | utils.PrintLog | None = None,
+        time_log: utils.LogLike | None = None,
     ) -> Update:
         """
         行を更新
@@ -295,11 +377,11 @@ class Table:
         join: list[Join] | Join | None = None,
         group_by: list[Column] | Column | None = None,
         order_by: list[OrderBy] | OrderBy | None = None,
-        having: None = None,
+        having: conds.Cond | None = None,
         limit: int | None = None,
         is_from: bool = True,
         is_execute: bool = True,
-        time_log: Literal["print_log"] | utils.PrintLog | None = None,
+        time_log: utils.LogLike | None = None,
     ) -> Select:
         """
         行を更新

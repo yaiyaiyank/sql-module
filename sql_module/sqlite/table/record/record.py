@@ -18,3 +18,7 @@ class Field:
     @property
     def sql_value(self):
         return self.column.constraint.get_sql_value(self.value)
+
+    def __repr__(self) -> str:
+        string = f"カラム名: {self.column.name}\nvalue: {self.value}\nupsert: {self.upsert}"
+        return string

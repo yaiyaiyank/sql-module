@@ -8,103 +8,134 @@ import datetime
 import sql_module
 
 
-def get_table_definition(db_path: Path | str | None = None):
+class ScreenName(sql_module.AtIDTableDefinition):
+    """@部分の名前は、フォルダーに使うので専用に作る"""
+
+    def set_colmun_difinition(self):
+        # unique
+        self.screen_name_column = self.get_column("screen_name", str, not_null=True, unique=True)
+
+
+# ユーザー
+class User(sql_module.AtIDTableDefinition):
+    def set_colmun_difinition(self):
+        # unique
+        # 命名規則: rest_id_columnと書く時、それはrest.idにreferencesしてるとき。今回はrest_idそのものなのでアンダーバーをつける。
+        # ChatGPTいわく、Xのrest_idは巨大整数問題を避けるため 文字列で返す。intでない。
+        self._rest_id_column = self.get_column("_rest_id", str, not_null=True, unique=True)
+        # 現在の名前
+        self.current_name_column = self.get_column("current_name", str, not_null=True)
+        # 現在のscreen_name(@部分)のid
+        self.current_screen_name_id_column = self.get_column("current_screen_name_id", int, not_null=True)
+        # bio
+        self.description_column = self.get_column("description", str)
+        # フォロー数
+        self.follows_count_column = self.get_column("follows_count", int)
+        # フォロワー数
+        self.followers_count_column = self.get_column("followers_count", int)
+
+
+# ユーザー
+class UserSCD2(sql_module.AtIDTableDefinition):
+    def set_colmun_difinition(self):
+        # unique
+        # 命名規則: rest_id_columnと書く時、それはrest.idにreferencesしてるとき。今回はrest_idそのものなのでアンダーバーをつける。
+        # ChatGPTいわく、Xのrest_idは巨大整数問題を避けるため 文字列で返す。intでない。
+        self._rest_id_column = self.get_column("_rest_id", str, not_null=True, unique=True)
+
+        # 現在の名前
+        self.current_name_column = self.get_column("current_name", str, not_null=True)
+        # 現在のscreen_name(@部分)のid
+        self.current_screen_name_id_column = self.get_column("current_screen_name_id", int, not_null=True)
+        # bio
+        self.description_column = self.get_column("description", str)
+        # フォロー数
+        self.follows_count_column = self.get_column("follows_count", int)
+        # フォロワー数
+        self.followers_count_column = self.get_column("followers_count", int)
+
+
+class UserScreenName(sql_module.AtIDTableDefinition):
+    """
+    rest_id == '1823879767634141185', screen_name == 'oioioi525'
+    ->
+    rest_id == '1823879767634141185', screen_name == 'oioioi525_2'
+
+    rest_id == '114514', screen_name == 'nyowaaaaaa'
+    ->
+    rest_id == '114514', screen_name == 'oioioi525'
+    みたいになれば、
+    '1823879767634141185' -> 'oioioi525', 'oioioi525_2'
+    'oioioi525' -> '1823879767634141185', '114514'
+    といった多対多の関係になりうるので、中間テーブルを作る
+    """
+
+    def set_colmun_difinition(self):
+        # unique
+        # rest_idごとにユーザー名をころころ変える人もいます
+        self.user_id_column = self.get_column("user_id", int, not_null=True)
+        # ユーザー名が使われなくなって30日くらいしてから経ってから他のrest_idがそのユーザー名を使用し始める可能性があるため
+        self.screen_name_id_column = self.get_column("screen_name_id", int, not_null=True)
+
+
+class Post(sql_module.AtIDTableDefinition):
+    def set_colmun_difinition(self):
+        # unique
+        # rest_idと違い、こちらはint
+        # 命名規則により_idが自然の場合はアンダーバーをつける。
+        self._post_id_column = self.get_column("_post_id", int, not_null=True, unique=True)
+        # 命名規則により_idが外部キーの場合はアンダーバーをつけない。
+        self.user_id_column = self.get_column("user_id", int, not_null=True)
+        # 140字まで綴る文章
+        self.content_column = self.get_column("content", str, not_null=True)
+        # 投稿日
+        self.date_column = self.get_column("date", datetime.datetime, not_null=True)
+        # ダウンロード済判定に使う
+        self.already_download_column = self.get_column("already_download", bool, default_value=False)
+        # いいね(ふぁぼ)数
+        self.favorite_count_column = self.get_column("favorite_count", int, not_null=True)
+        # 引用リポスト
+        self.quote_count_column = self.get_column("quote_count", int, not_null=True)
+        # リプ(返信)数
+        self.reply_count_column = self.get_column("reply_count", int, not_null=True)
+        # リポスト数
+        self.retweet_count_column = self.get_column("retweet_count", int, not_null=True)
+        # ブックマーク数
+        self.bookmark_count_column = self.get_column("bookmark_count", int, not_null=True)
+        # 表示された数
+        self.view_count_column = self.get_column("view_count", int, not_null=True)
+        # Twitter for (アプリのタイプ)
+        self.source_column = self.get_column("source", str, not_null=True)
+        # lang
+        self.lang_column = self.get_column("lang", str, not_null=True)
+
+
+def table_init(db_path: Path | str | None = None):
     sqlite_database = sql_module.SQLiteDataBase(db_path)
-
-    class ScreenName(sql_module.AtIDTableDefinition):
-        """@部分の名前は、フォルダーに使うので専用に作る"""
-
-        def set_colmun_difinition(self):
-            # unique
-            self.screen_name_column = self.get_column("screen_name", str, not_null=True, unique=True)
 
     screen_name: ScreenName = sqlite_database.get_table_definition(ScreenName)
 
-    # ユーザー
-    class User(sql_module.AtIDTableDefinition):
-        def set_colmun_difinition(self):
-            # unique
-            # 命名規則: rest_id_columnと書く時、それはrest.idにreferencesしてるとき。今回はrest_idそのものなのでアンダーバーをつける。
-            # ChatGPTいわく、Xのrest_idは巨大整数問題を避けるため 文字列で返す。intでない。
-            self._rest_id_column = self.get_column("_rest_id", str, not_null=True, unique=True)
-            # 現在の名前
-            self.current_name_column = self.get_column("current_name", str, not_null=True)
-            # 現在のscreen_name(@部分)のid
-            self.current_screen_name_id_column = self.get_column(
-                "current_screen_name_id", int, not_null=True, references=screen_name.id_column
-            )
-            # bio
-            self.description_column = self.get_column("description", str)
-            # フォロー数
-            self.follows_count_column = self.get_column("follows_count", int)
-            # フォロワー数
-            self.followers_count_column = self.get_column("followers_count", int)
-
     user: User = sqlite_database.get_table_definition(User)
-
-    class UserScreenName(sql_module.AtIDTableDefinition):
-        """
-        rest_id == '1823879767634141185', screen_name == 'oioioi525'
-        ->
-        rest_id == '1823879767634141185', screen_name == 'oioioi525_2'
-
-        rest_id == '114514', screen_name == 'nyowaaaaaa'
-        ->
-        rest_id == '114514', screen_name == 'oioioi525'
-        みたいになれば、
-        '1823879767634141185' -> 'oioioi525', 'oioioi525_2'
-        'oioioi525' -> '1823879767634141185', '114514'
-        といった多対多の関係になりうるので、中間テーブルを作る
-        """
-
-        def set_colmun_difinition(self):
-            # unique
-            self.user_id_column = self.get_column(
-                "user_id", int, not_null=True, references=user.id_column
-            )  # rest_idごとにユーザー名をころころ変える人もいます
-            self.screen_name_id_column = self.get_column(
-                "screen_name_id", int, not_null=True, references=screen_name.id_column
-            )  # ユーザー名が使われなくなって30日くらいしてから経ってから他のrest_idがそのユーザー名を使用し始める可能性があるため
+    user.current_screen_name_id_column.set_foreign_key(screen_name.id_column)
 
     user_screen_name: UserScreenName = sqlite_database.get_table_definition(UserScreenName)
+    user_screen_name.user_id_column.set_foreign_key(user.id_column)
+    user_screen_name.screen_name_id_column.set_foreign_key(screen_name.id_column)
     user_screen_uni = sql_module.UniqueCompositeConstraint(
         user_screen_name.user_id_column, user_screen_name.screen_name_id_column
     )
 
-    class Post(sql_module.AtIDTableDefinition):
-        def set_colmun_difinition(self):
-            # unique
-            # rest_idと違い、こちらはint
-            # 命名規則により_idが自然の場合はアンダーバーをつける。
-            self._post_id_column = self.get_column("_post_id", int, not_null=True, unique=True)
-            # 命名規則により_idが外部キーの場合はアンダーバーをつけない。
-            self.user_id_column = self.get_column("user_id", int, not_null=True, references=user.id_column)
-            # 140字まで綴る文章
-            self.content_column = self.get_column("content", str, not_null=True)
-            # 投稿日
-            self.date_column = self.get_column("date", datetime.datetime, not_null=True)
-            # ダウンロード済判定に使う
-            self.already_download_column = self.get_column("already_download", bool, default_value=False)
-            # いいね(ふぁぼ)数
-            self.favorite_count_column = self.get_column("favorite_count", int, not_null=True)
-            # 引用リポスト
-            self.quote_count_column = self.get_column("quote_count", int, not_null=True)
-            # リプ(返信)数
-            self.reply_count_column = self.get_column("reply_count", int, not_null=True)
-            # リポスト数
-            self.retweet_count_column = self.get_column("retweet_count", int, not_null=True)
-            # ブックマーク数
-            self.bookmark_count_column = self.get_column("bookmark_count", int, not_null=True)
-            # 表示された数
-            self.view_count_column = self.get_column("view_count", int, not_null=True)
-            # Twitter for (アプリのタイプ)
-            self.source_column = self.get_column("source", str, not_null=True)
-            # lang
-            self.lang_column = self.get_column("lang", str, not_null=True)
-
     post: Post = sqlite_database.get_table_definition(Post)
+    post.user_id_column.set_foreign_key(user.id_column)
 
-    return user, screen_name, user_screen_name, user_screen_uni, post
+    user.create()
+    screen_name.create()
+    user_screen_name.create(user_screen_uni)
+    post.create()
+
+    user_screen_name.create_index([user_screen_name.user_id_column, user_screen_name.screen_name_id_column])
+
+    return user, screen_name, user_screen_name, post
 
 
 # -----------ユーザーのプロフ系insert-----------

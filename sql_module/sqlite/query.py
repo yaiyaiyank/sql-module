@@ -111,13 +111,13 @@ class Query:
             self.driver = None
             return
 
-    def execute(self, time_log: Literal["print_log"] | utils.PrintLog | None = None):
+    def execute(self, time_log: utils.LogLike | None = None):
         if self.driver is None:
             raise ValueError("実行するにはdriverが必要です。")
         query_string, placeholder_dict = self.measurement()
         self.driver.execute(query_string, placeholder_dict, time_log=time_log)
 
-    def commit(self, time_log: Literal["print_log"] | utils.PrintLog | None = None):
+    def commit(self, time_log: utils.LogLike | None = None):
         if self.driver is None:
             raise ValueError("コミットするにはdriverが必要です。")
         self.driver.commit(time_log=time_log)
@@ -138,6 +138,19 @@ class Query:
         query_string = query_string.strip()
 
         return query_string, placeholder_dict
+
+    def substitute(self) -> str:
+        """現時点のプレースホルダをクエリ文字列に代入する(CREATE INDEXで必要になった)"""
+        query_string = self.string_list[0]
+        string_list2 = self.string_list[1:]
+
+        for i, (value, string) in enumerate(zip(self.value_list, string_list2)):
+            if isinstance(value, str):
+                value = f"'{value}'"
+            query_string += value.__str__()
+            query_string += string
+
+        return query_string
 
 
 def query_join_comma(query_list: list[Query], no_empty: bool = False) -> Query:
