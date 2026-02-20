@@ -11,5 +11,5 @@ wheels/
 .vscode
 
 # local
-/tests/stg/
+/tests/
 test.ipynb
