@@ -11,5 +11,5 @@ dev = [
     "ipykernel>=7.1.0",
 ]
 
-[tool.setuptools]
-packages = ["sql_module"]
+[tool.setuptools.packages.find]
+include = ["sql_module", "sql_module.*"]
