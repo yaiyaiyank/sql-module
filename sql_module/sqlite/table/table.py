@@ -279,7 +279,7 @@ class Table:
         バルクインサートをついに実装！
 
         Args:
-            insert_list (list[Insert]): まだ実行していないInsertオブジェクトのリスト
+            record_list (list[list[Field]] | list[Field]): バルクinsertしたいレコードのリスト
         """
         if record_list.__len__() == 0:
             return
@@ -308,27 +308,6 @@ class Table:
 
         self.driver.executemany(sample_query_string, placeholder_dict_list, time_log=time_log)
         self.driver.commit(time_log=time_log)
-
-    def bulk_insert2(self, insert_list: list[Insert], time_log: utils.LogLike | None = None):
-        """
-        バルクインサートをついに実装！
-
-        Args:
-            insert_list (list[Insert]): まだ実行していないInsertオブジェクトのリスト
-        """
-        timer = utils.Timer(time_log=time_log)
-
-        self.driver.begin()
-        try:
-            for i, insert in enumerate(insert_list):
-                insert.execute()
-        except Exception as e:
-            self.driver.rollback()
-            raise RuntimeError(f"バルクindex={i}, query(placeholderじゃない部分)={insert} failed: {e}") from e
-
-        self.driver.commit()
-
-        timer.finish("バルクinsert時間")
 
     def update(
         self,
@@ -373,6 +352,74 @@ class Table:
                 update.commit(time_log=time_log)
 
         return update
+
+    def bulk_update(
+        self,
+        record_list: list[list[Field]] | list[Field],
+        where_list: list[conds.Cond] | None,
+        non_where_safe: bool = True,
+        time_log: utils.LogLike | None = None,
+    ):
+        """
+        バルクアップデートをついに実装！
+
+        Args:
+            record_list (list[list[Field]] | list[Field]): バルクupdateしたいレコードのリスト
+        """
+        if record_list.__len__() == 0:
+            return
+
+        if where_list is None:
+            where_list = [None for _ in range(record_list.__len__())]
+
+        if record_list.__len__() != where_list.__len__():
+            raise exceptions.BulkError(
+                f"updateに使うrecord_listとwhere_listの長さは統一してください。record_listの長さ: {record_list.__len__()}, where_listの長さ: {where_list.__len__()}"
+            )
+
+        sample_query_string = None
+        sample_placeholder_dict = None
+
+        placeholder_dict_list = []
+        for i, (record, where) in enumerate(zip(record_list, where_list)):
+            update = self.update(record, where, non_where_safe, is_execute=False)
+            query_string, placeholder_dict = update.measurement()
+            # クエリ文字列やプレースホルダの長さはすべて等しい必要がある
+            # 1行目のクエリ文字列とプレースホルダの長さを見本とする
+            if i == 0:
+                sample_query_string = query_string
+                sample_placeholder_dict = placeholder_dict
+            elif query_string != sample_query_string:
+                raise exceptions.BulkError(
+                    f"クエリ文字列が等しくないレコードが存在します。\n1レコード目: {sample_query_string}\n{i + 1}レコード目: {query_string}"
+                )
+            elif placeholder_dict.__len__() != sample_placeholder_dict.__len__():
+                raise exceptions.BulkError(
+                    f"クエリ文字列が等しくないレコードが存在します。\n1レコード目の長さ: {sample_placeholder_dict.__len__()}\n{i + 1}レコード目の長さ: {placeholder_dict.__len__()}"
+                )
+            placeholder_dict_list.append(placeholder_dict)
+
+        self.driver.executemany(sample_query_string, placeholder_dict_list, time_log=time_log)
+        self.driver.commit(time_log=time_log)
+
+    def bulk_query(self, executable_query_list: list[Query], time_log: utils.LogLike | None = None):
+        """
+        Args:
+            executable_query_list (list[Query]): 実行可能なQueryオブジェクトのリスト
+        """
+        timer = utils.Timer(time_log=time_log)
+
+        self.driver.begin()
+        try:
+            for i, query in enumerate(executable_query_list):
+                query.execute()
+        except Exception as e:
+            self.driver.rollback()
+            raise RuntimeError(f"バルクindex={i}, query(placeholderじゃない部分)={query} failed: {e}") from e
+
+        self.driver.commit()
+
+        timer.finish("バルクquery時間")
 
     def select(
         self,

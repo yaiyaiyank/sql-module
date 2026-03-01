@@ -45,7 +45,7 @@ def get_sql_value(
         # sqliteの日付()へ変換
         if isinstance(python_value, datetime.datetime):
             # microsecondやtimezoneがあったら取り除きながら datetime.datetime(2026, 1, 28, 3, 21, 53) -> '2026-01-28 03:21:53'
-            sql_value = python_value.replace(microsecond=0).strftime("%Y-%m-%d %H:%M:%S")
+            sql_value = python_value.strftime("%Y-%m-%d %H:%M:%S")
             return _get_placeholder_string(sql_value, is_placeholder)
 
         if isinstance(python_value, datetime.date):
