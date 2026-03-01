@@ -103,8 +103,8 @@ class TableDefinition:
     def bulk_insert(self, insert_list: list[Insert], time_log: utils.LogLike | None = None):
         self.table.bulk_insert(insert_list, time_log=time_log)
 
-    def bulk_insert2(self, insert_list: list[Insert], time_log: utils.LogLike | None = None):
-        self.table.bulk_insert2(insert_list, time_log=time_log)
+    def bulk_query(self, executable_query_list: list[Query], time_log: utils.LogLike | None = None):
+        self.table.bulk_query(executable_query_list, time_log=time_log)
 
     def update(
         self,
