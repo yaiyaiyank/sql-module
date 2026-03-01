@@ -100,8 +100,17 @@ class TableDefinition:
         insert = self.table.insert(record, is_execute, is_commit, is_returning_id, time_log=time_log)
         return insert
 
-    def bulk_insert(self, insert_list: list[Insert], time_log: utils.LogLike | None = None):
-        self.table.bulk_insert(insert_list, time_log=time_log)
+    def bulk_insert(self, record_list: list[list[Field]] | list[Field], time_log: utils.LogLike | None = None):
+        self.table.bulk_insert(record_list, time_log=time_log)
+
+    def bulk_update(
+        self,
+        record_list: list[list[Field]] | list[Field],
+        where_list: list[conds.Cond] | None,
+        non_where_safe: bool = True,
+        time_log: utils.LogLike | None = None,
+    ):
+        self.table.bulk_update(record_list, where_list, non_where_safe, time_log=time_log)
 
     def bulk_query(self, executable_query_list: list[Query], time_log: utils.LogLike | None = None):
         self.table.bulk_query(executable_query_list, time_log=time_log)
@@ -211,7 +220,6 @@ class AtIDTableDefinition(IDTableDefinition):
         insert = self.table.insert(record, is_execute, is_commit, is_returning_id, time_log=time_log)
         return insert
 
-    # bulk_insert2はinsertにupdated_atを織り込み済みなのでオーバーライド不要
     def bulk_insert(
         self,
         record_list: list[list[Field]] | list[Field],
@@ -240,6 +248,20 @@ class AtIDTableDefinition(IDTableDefinition):
             record, where, non_where_safe, is_execute, is_commit, is_returning_id, time_log=time_log
         )
         return update
+
+    def bulk_update(
+        self,
+        record_list: list[list[Field]] | list[Field],
+        where_list: list[conds.Cond] | None,
+        non_where_safe: bool = True,
+        time_log: utils.LogLike | None = None,
+    ):
+        record_list2 = []
+        for record in record_list:
+            record = self._get_append_update_column_record(record)
+            record_list2.append(record)
+
+        self.table.bulk_update(record_list2, where_list, non_where_safe, time_log=time_log)
 
     @abstractmethod
     def set_colmun_difinition(self):
