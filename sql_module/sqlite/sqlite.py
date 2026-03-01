@@ -13,6 +13,8 @@ class SQLiteDataBase:
 
     def __post_init__(self):
         self.driver = Driver(self.db_path)
+        if not self.db_path is None:
+            Path(self.db_path).mkdir(parents=True, exist_ok=True)
         self._set_journal_mode()
 
     def get_table(self, name: str) -> Table:
