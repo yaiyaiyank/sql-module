@@ -29,6 +29,7 @@ class Status:
 @dataclass
 class Driver:
     database_file_path: Path | str | None
+    timeout_sec: int | float
     status: Status = field(default_factory=Status)
 
     def __post_init__(self):
@@ -62,7 +63,7 @@ class Driver:
             self.close_conn()
 
     def open_conn(self):
-        self.conn = sqlite3.connect(self.database_file_path)
+        self.conn = sqlite3.connect(self.database_file_path, timeout=self.timeout_sec)
         self.status.conn = True
 
     def close_conn(self):
