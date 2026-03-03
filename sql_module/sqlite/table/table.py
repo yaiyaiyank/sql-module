@@ -409,7 +409,6 @@ class Table:
         """
         timer = utils.Timer(time_log=time_log)
 
-        self.driver.begin()
         try:
             for i, query in enumerate(executable_query_list):
                 query.execute()
