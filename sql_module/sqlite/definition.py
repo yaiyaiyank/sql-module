@@ -336,8 +336,6 @@ class SCD2AtIDTableDefinition(AtIDTableDefinition):
             current_id (int): insertしたcurrent=1の行のid
         """
         # トランザクションで一括
-        self.table.driver.begin()
-
         now = datetime.datetime.now(datetime.timezone.utc)
 
         # まずは現行を閉じる
@@ -357,9 +355,8 @@ class SCD2AtIDTableDefinition(AtIDTableDefinition):
         insert_record3 = self._get_append_update_column_record(insert_record2, now=now)
         # まだコミットしない(id拾うため)
         insert = self.table.insert(insert_record3, is_returning_id=True, time_log=time_log)
+        # fetch_idでコミットされる
         fetch_id = insert.fetch_id(time_log=time_log)
-        # ここでコミット
-        insert.commit(time_log=time_log)
 
         return fetch_id
 
