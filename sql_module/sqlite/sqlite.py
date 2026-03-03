@@ -10,9 +10,10 @@ from sql_module import utils, Table, TableDefinition, IDTableDefinition, AtIDTab
 class SQLiteDataBase:
     db_path: Path | str | None = None
     is_wal_mode: bool = True
+    timeout_sec: int | float = 5
 
     def __post_init__(self):
-        self.driver = Driver(self.db_path)
+        self.driver = Driver(self.db_path, self.timeout_sec)
         if not self.db_path is None:
             Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._set_journal_mode()
