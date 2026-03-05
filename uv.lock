@@ -217,6 +217,11 @@ wheels = [
 ]
 
 [[package]]
+name = "logging-module"
+version = "1.1.1"
+source = { git = "https://github.com/yaiyaiyank/logging-module#9e45597e35a9be3889c51f3d40bdd6d00da92f5f" }
+
+[[package]]
 name = "matplotlib-inline"
 version = "0.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -416,18 +421,22 @@ wheels = [
 
 [[package]]
 name = "sql-module"
-version = "0.1.0"
+version = "1.5.0"
 source = { virtual = "." }
 
 [package.dev-dependencies]
 dev = [
     { name = "ipykernel" },
+    { name = "logging-module" },
 ]
 
 [package.metadata]
 
 [package.metadata.requires-dev]
-dev = [{ name = "ipykernel", specifier = ">=7.1.0" }]
+dev = [
+    { name = "ipykernel", specifier = ">=7.1.0" },
+    { name = "logging-module", git = "https://github.com/yaiyaiyank/logging-module" },
+]
 
 [[package]]
 name = "stack-data"
