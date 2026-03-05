@@ -9,7 +9,11 @@ dependencies = []
 [dependency-groups]
 dev = [
     "ipykernel>=7.1.0",
+    "logging-module",
 ]
 
 [tool.setuptools.packages.find]
 include = ["sql_module", "sql_module.*"]
+
+[tool.uv.sources]
+logging-module = { git = "https://github.com/yaiyaiyank/logging-module" }
