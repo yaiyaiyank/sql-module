@@ -31,6 +31,8 @@ class Driver:
     database_file_path: Path | str | None
     timeout_sec: int | float
     status: Status = field(default_factory=Status)
+    conn: sqlite3.Connection | None = None
+    cursor: sqlite3.Cursor | None = None
 
     def __post_init__(self):
         if self.database_file_path is None:
@@ -49,7 +51,6 @@ class Driver:
             self.open_conn()
             # これをしないと外部キー制約がオフになったまま(connect時毎回必要)
             self.execute("PRAGMA foreign_keys = ON")
-            # これをしないとデフォルトではfetchがタプルで帰ってきてしまう
         if not self.status.cursor:
             self.open_cursor()
 
@@ -64,15 +65,19 @@ class Driver:
 
     def open_conn(self):
         self.conn = sqlite3.connect(self.database_file_path, timeout=self.timeout_sec)
+        self.conn.row_factory = sqlite3.Row  # sqlite3.Rowオブジェクトはdictと同等以上の機能があるが、row: sqlite3.Rowオブジェクトとしてisinstance(row, dict)ではFalseだった。isinstance(row, list)でもFalseだった。
         self.status.conn = True
 
     def close_conn(self):
+        # cursorも無効化するべき
+        if self.status.cursor:
+            self.close_cursor()
         self.conn.close()
         self.status.conn = False
 
     def open_cursor(self):
         self.cursor = self.conn.cursor()
-        self.cursor.row_factory = sqlite3.Row  # sqlite3.Rowオブジェクトはdictと同等以上の機能があるが、row: sqlite3.Rowオブジェクトとしてisinstance(row, dict)ではFalseだった。isinstance(row, list)でもFalseだった。
+        self.conn.execute("PRAGMA foreign_keys = ON")  # これをしないと外部キー制約がオフになったまま(connect時毎回必要)
         self.status.cursor = True
 
     def close_cursor(self):
@@ -158,14 +163,11 @@ class Driver:
 
         try:
             self.conn.commit()
-        except sqlite3.OperationalError:
+        except sqlite3.DatabaseError:
             self.rollback()
-            # 再起動する
-            self.close_full()
-            self.open_full()
             raise
-
-        timer.finish("コミット時間")
+        finally:
+            timer.finish("コミット時間")
 
     def fetchall(
         self, dict_output: bool = False, time_log: utils.LogLike | None = None

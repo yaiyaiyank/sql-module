@@ -37,7 +37,7 @@ def get_sql_value(
                 raise exceptions.SQLValueError(
                     "sqliteのdatetime.date系カラムに入力できる文字列はISO形式の'%Y-%m-%d %H:%M:%S'形式で、さらに範囲も合っている必要があります。"
                 )
-        # 非対応 (文字列は上記"CURRENT_TIMESTAMP"しか対応しないので、"2024-01-01"の入力は受け付けない。代わりに、)
+        # 非対応
         if not isinstance(python_value, datetime.date):
             raise exceptions.SQLTypeError(
                 f"sqliteのdatetime.date系カラムに、入力した型: {python_value.__class__.__name__} は対応していません。"
