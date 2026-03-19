@@ -2,6 +2,7 @@ from pathlib import Path
 from dataclasses import dataclass, field
 import datetime
 from typing import Self, Literal
+import sqlite3
 from sql_module import utils, Driver, exceptions
 
 
@@ -73,16 +74,16 @@ class Query:
         self.string_list[0] = f"{other}{self.string_list[0]}"
         return self
 
-    def __mul__(self, other: str | int | bytes | Path | datetime.date | None) -> Self:
+    def __mul__(self, other: str | int | sqlite3.Binary | None) -> Self:
         self = self.copy()
         if isinstance(other, Query):
-            TypeError("Query*Queryは対応していません。Query+Queryは対応しています。")
+            raise TypeError("Query*Queryは対応していません。Query+Queryは対応しています。")
 
         self.string_list.append("")
         self.value_list.append(other)
         return self
 
-    def __rmul__(self, other: str | int | bytes | Path | datetime.date | None) -> Self:
+    def __rmul__(self, other: str | int | sqlite3.Binary | None) -> Self:
         self = self.copy()
 
         self.string_list.insert(0, "")
@@ -100,7 +101,7 @@ class Query:
     def __repr__(self):
         return self.__str__()
 
-    def merge_driver(self, other_driver: Self):
+    def merge_driver(self, other_driver: Driver):
         """driverをマージ。新しくQueryオブジェクトを作ってDriverを入れたい場合にも使える。"""
         # 演算時にdriverを注入する
         # selfとotherのdriverが取りうるのはNoneか同じIDのdriver。上書きok。
