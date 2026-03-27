@@ -6,15 +6,17 @@ from sql_module.exceptions import FetchNotFoundError
 
 
 class Update(Query):
-    def fetch_id(self) -> int:
+    def fetch_id(self, time_log: utils.LogLike | None = None) -> int:
         """insert後にidをfetch"""
         try:
-            id_dict = self.driver.fetchone()
+            id_dict = self.driver.fetchone(time_log=time_log)
             return id_dict["id"]
         except FetchNotFoundError:
             if not "RETURNING id" in self.__str__():
-                raise FetchNotFoundError("update時の引数でis_returning_idをTrueにしてください")
+                raise FetchNotFoundError("insert時の引数でis_returning_idをTrueにしてください")
             raise
+        finally:
+            self.driver.commit(time_log=time_log)
 
 
 class UpdateQueryBuilder:
