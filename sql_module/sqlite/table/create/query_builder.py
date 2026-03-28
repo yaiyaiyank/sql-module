@@ -11,6 +11,7 @@ from sql_module.exceptions import ConstraintConflictError, SQLTypeError
 
 class CreateQueryBuilder:
     def __init__(self, driver: Driver):
+        """テーブル作成クエリを構成。プレースホルダを使えないのでSQLインジェクションの可能性はあるが、そもそも外部入力をテーブル名・カラム名にすることはない。"""
         self.driver = driver
 
     def get_head_query(self, exists_ok: bool) -> Query:

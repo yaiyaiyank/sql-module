@@ -11,7 +11,6 @@ from sql_module import exceptions, get_sql_value
 class ColumnConstraint:
     """
     列制約
-    TODO Columnとinitにある型が相互依存している場合のベストプラクティスを知りたい。ちゃっぴーはColumnLikeというインターフェースを作れって言ってた
     """
 
     python_type: type

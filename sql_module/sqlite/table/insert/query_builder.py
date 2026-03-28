@@ -13,7 +13,6 @@ class Insert(Query):
         """insert後にidをfetch"""
         try:
             id_dict = self.driver.fetchone(time_log=time_log)
-            self.driver.commit(time_log=time_log)
             return id_dict["id"]
         except FetchNotFoundError:
             if not "RETURNING id" in self.__str__():
@@ -22,6 +21,8 @@ class Insert(Query):
                 # 'DO NOTHING'の文字は値に含まれているかもしれないが、それはプレースホルダなのでこの分岐で問題ないと判断
                 raise FetchNotFoundError("全てのカラムがon conflictな場合、insertでidを取得できません。")
             raise
+        finally:
+            self.driver.commit(time_log=time_log)
 
 
 class InsertQueryBuilder:
